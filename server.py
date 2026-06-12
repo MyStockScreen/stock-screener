@@ -19,7 +19,8 @@ except ImportError:
         def __init__(self, wrapper): pass
     class Contract: pass
 
-app = Flask(__name__, static_folder='.')
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+app = Flask(__name__, static_folder=BASE_DIR)
 CORS(app)
 
 # ── API Key — env var → disk fallback ─────────────────────────────────────────
@@ -272,7 +273,7 @@ def td_quote_batch(symbols, batch_size=100):
 
 @app.route('/')
 def index():
-    return send_from_directory('.', 'screener.html')
+    return send_from_directory(BASE_DIR, 'screener.html')
 
 @app.route('/api/connect_ib', methods=['POST'])
 def connect_ib():
