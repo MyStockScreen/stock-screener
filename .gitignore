@@ -1,0 +1,7 @@
+.td_key
+__pycache__/
+*.pyc
+*.pyo
+server_log.txt
+.env
+venv/

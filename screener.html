@@ -1,0 +1,1524 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stock Screener</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Heebo:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/fuse.js@7.0.0/dist/fuse.min.js"></script>
+<script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#0b0e13;--s1:#111620;--s2:#181e2a;--s3:#1e2535;--bd:#252d3d;--bd2:#2e3850;--tx:#dde3ef;--tx2:#7a8499;--tx3:#3a4258;--gr:#2ecc71;--rd:#e74c3c;--bl:#3498db;--yl:#f39c12;--ac:#2563eb;--acg:rgba(37,99,235,0.15)}
+body{background:var(--bg);color:var(--tx);font-family:'Heebo',sans-serif;min-height:100vh;font-size:13px}
+.topnav{background:var(--s1);border-bottom:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between;padding:0 18px;height:46px;position:sticky;top:0;z-index:200}
+.logo{font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:600;color:var(--bl);display:flex;align-items:center;gap:8px}
+.logo-box{background:var(--ac);color:#fff;padding:3px 8px;border-radius:4px;font-size:12px}
+.nav-links{display:flex;gap:2px}
+.nl{padding:6px 14px;border-radius:4px;font-size:12px;font-weight:500;color:var(--tx2);cursor:pointer;border:none;background:none;font-family:'Heebo',sans-serif;transition:.15s}
+.nl:hover{background:var(--s2);color:var(--tx)}.nl.on{background:var(--s2);color:var(--bl)}
+.conn-pill{display:flex;align-items:center;gap:6px;background:var(--s2);border:1px solid var(--bd);padding:4px 12px;border-radius:20px;font-size:11px;font-family:'IBM Plex Mono',monospace;color:var(--tx2)}
+.cdot{width:7px;height:7px;border-radius:50%;background:var(--rd)}.cdot.on{background:var(--gr);animation:blink 2s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.layout{display:grid;grid-template-columns:250px 1fr;min-height:calc(100vh - 46px)}
+.sb{background:var(--s1);border-left:1px solid var(--bd);padding:12px;overflow-y:auto;display:flex;flex-direction:column;gap:10px}
+.box{background:var(--s2);border:1px solid var(--bd);border-radius:6px;overflow:hidden}
+.bh{background:var(--s3);border-bottom:1px solid var(--bd);padding:7px 12px;font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--tx2)}
+.bb{padding:11px}
+.fr{margin-bottom:9px}
+.fr label{display:block;font-size:11px;color:var(--tx2);margin-bottom:4px;font-weight:600}
+.fr select,.fr input{width:100%;background:var(--s1);border:1px solid var(--bd2);color:var(--tx);padding:7px 9px;border-radius:4px;font-size:12px;font-family:'IBM Plex Mono',monospace;outline:none;direction:ltr}
+.fr select option{background:var(--s2)}
+.rng{display:flex;gap:4px;align-items:center}
+.rng input{width:62px!important;text-align:center}
+.rng span{color:var(--tx3);font-size:11px}
+.trow{display:flex;align-items:center;justify-content:space-between;margin-bottom:7px}
+.tl{font-size:12px;color:var(--tx2)}
+.tog{width:32px;height:17px;background:var(--bd2);border-radius:9px;cursor:pointer;position:relative;border:none;transition:.2s}
+.tog.on{background:var(--ac)}
+.tog::after{content:'';position:absolute;width:11px;height:11px;background:#fff;border-radius:50%;top:3px;right:3px;transition:.2s}
+.tog.on::after{transform:translateX(-15px)}
+.btn{width:100%;padding:8px;border-radius:5px;font-size:12px;font-weight:700;font-family:'Heebo',sans-serif;cursor:pointer;border:none;display:flex;align-items:center;justify-content:center;gap:5px;transition:.15s}
+.bp{background:var(--ac);color:#fff}.bp:hover{background:#1d4ed8}
+.bs{background:var(--s3);color:var(--tx);border:1px solid var(--bd2);margin-top:6px}.bs:hover{background:var(--bd)}
+.ct{padding:14px;overflow-y:auto}
+.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:14px}
+.sc{background:var(--s1);border:1px solid var(--bd);border-radius:6px;padding:10px 12px;border-top:2px solid var(--bd)}
+.sc.up{border-top-color:var(--gr)}.sc.dn{border-top-color:var(--rd)}.sc.bl{border-top-color:var(--bl)}.sc.yl{border-top-color:var(--yl)}.sc.wt{border-top-color:#aaa}
+.sl{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--tx2);font-weight:700;margin-bottom:4px}
+.sv{font-family:'IBM Plex Mono',monospace;font-size:20px;font-weight:600}
+.tw{background:var(--s1);border:1px solid var(--bd);border-radius:6px;overflow:hidden}
+.tt{background:var(--s2);border-bottom:1px solid var(--bd);padding:9px 12px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.ttl{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--tx2)}
+.ta{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.srch{background:var(--s1);border:1px solid var(--bd2);color:var(--tx);padding:5px 9px;border-radius:4px;font-size:12px;font-family:'IBM Plex Mono',monospace;outline:none;width:140px;direction:ltr;transition:.2s}
+.srch:focus{border-color:var(--ac);width:180px}
+.sym-srch{background:var(--s1);border:1px solid var(--bd2);color:var(--tx);padding:5px 9px;border-radius:4px;font-size:12px;font-family:'IBM Plex Mono',monospace;outline:none;width:85px;direction:ltr;text-transform:uppercase}
+.rb{background:var(--ac);color:#fff;border:none;padding:5px 14px;border-radius:4px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Heebo',sans-serif;display:flex;align-items:center;gap:5px;transition:.15s}
+.rb:hover{background:#1d4ed8}.rb:disabled{opacity:.5;cursor:not-allowed}
+.sb2{background:var(--s3);color:var(--tx);border:1px solid var(--bd2);padding:5px 11px;border-radius:4px;font-size:12px;cursor:pointer;font-family:'Heebo',sans-serif}
+.sb2:hover{background:var(--bd)}
+table{width:100%;border-collapse:collapse;font-family:'IBM Plex Mono',monospace;font-size:12px}
+thead{background:var(--s2);border-bottom:1px solid var(--bd)}
+th{padding:8px 11px;text-align:right;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--tx2);font-weight:700;cursor:pointer;user-select:none;white-space:nowrap}
+th:hover{color:var(--tx)}
+th .si{display:inline-block;margin-right:3px;opacity:.4;font-size:9px}
+th.sorted .si{opacity:1;color:var(--bl)}
+td{padding:7px 11px;border-bottom:1px solid var(--bd);white-space:nowrap;text-align:right}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:var(--s2)}
+.sym{font-weight:600;color:var(--bl);font-size:13px}
+.nm{font-size:10px;color:var(--tx3);font-family:'Heebo',sans-serif;max-width:130px;overflow:hidden;text-overflow:ellipsis}
+.badge{display:inline-flex;align-items:center;padding:2px 7px;border-radius:3px;font-size:11px;font-weight:600}
+.pos{background:rgba(46,204,113,.1);color:var(--gr);border:1px solid rgba(46,204,113,.2)}
+.neg{background:rgba(231,76,60,.1);color:var(--rd);border:1px solid rgba(231,76,60,.2)}
+.vb{display:flex;align-items:center;gap:6px}
+.vbr{height:3px;background:var(--bd2);border-radius:2px;flex:1;min-width:40px;overflow:hidden}
+.vbf{height:100%;background:linear-gradient(90deg,var(--ac),var(--bl));border-radius:2px}
+.empty{text-align:center;padding:70px 20px;color:var(--tx2)}
+.ei{font-size:44px;margin-bottom:14px;opacity:.4}
+.et{font-size:15px;font-weight:600;margin-bottom:8px;color:var(--tx)}
+.es{font-size:13px;line-height:1.8;max-width:340px;margin:0 auto}
+.pw{padding:30px 40px;text-align:center}
+.pb{width:100%;height:6px;background:var(--bd2);border-radius:3px;overflow:hidden;margin:12px 0}
+.pf{height:100%;background:linear-gradient(90deg,var(--ac),var(--bl));border-radius:3px;transition:width .4s}
+.pt{font-size:13px;color:var(--tx2);font-family:'IBM Plex Mono',monospace}
+.page{display:none}.page.on{display:block}
+/* ── Autocomplete ── */
+.ac-wrap{position:relative;display:inline-flex;align-items:center;gap:5px}
+.ac-in{background:var(--s1);border:1px solid var(--bd2);color:var(--tx);padding:5px 10px;border-radius:4px;font-size:12px;font-family:'IBM Plex Mono',monospace;outline:none;width:160px;direction:ltr;transition:.2s}
+.ac-in:focus{border-color:var(--ac);width:200px}
+.ac-drop{position:absolute;top:calc(100% + 4px);left:0;min-width:320px;background:var(--s2);border:1px solid var(--bd2);border-radius:6px;box-shadow:0 10px 30px rgba(0,0,0,.55);z-index:999;overflow:hidden;display:none;direction:ltr}
+.ac-drop.open{display:block}
+.ac-item{padding:7px 12px;cursor:pointer;display:flex;align-items:center;gap:9px;border-bottom:1px solid var(--bd);transition:.1s}
+.ac-item:last-child{border-bottom:none}
+.ac-item:hover,.ac-item.acs{background:var(--acg)}
+.ac-ticker{font-family:'IBM Plex Mono',monospace;font-weight:700;color:var(--bl);font-size:13px;min-width:54px}
+.ac-name{font-size:11px;color:var(--tx2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ac-xch{font-size:9px;color:var(--tx3);background:var(--bd);padding:2px 5px;border-radius:3px;white-space:nowrap}
+.ac-hint{padding:10px 14px;color:var(--tx3);font-size:11px;text-align:center}
+.api-wrap{max-width:560px}
+.ac{background:var(--s2);border:1px solid var(--bd);border-radius:8px;overflow:hidden;margin-bottom:12px}
+.ach{background:var(--s3);border-bottom:1px solid var(--bd);padding:10px 14px;font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--tx2)}
+.acb{padding:16px}
+.abadge{display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:6px;font-size:13px;font-weight:600;margin-bottom:14px}
+.abadge.ok{background:rgba(46,204,113,.08);border:1px solid rgba(46,204,113,.3);color:var(--gr)}
+.abadge.no{background:rgba(231,76,60,.08);border:1px solid rgba(231,76,60,.3);color:var(--rd)}
+.ki{width:100%;background:var(--s1);border:2px solid var(--bd2);color:var(--tx);padding:10px 12px;border-radius:6px;font-size:13px;font-family:'IBM Plex Mono',monospace;outline:none;direction:ltr;transition:.2s;margin-bottom:10px}
+.ki:focus{border-color:var(--ac)}.ki.valid{border-color:var(--gr)}
+.hint{background:rgba(37,99,235,.06);border:1px solid rgba(37,99,235,.2);border-radius:6px;padding:12px;font-size:12px;color:var(--tx2);line-height:1.9;margin-bottom:14px}
+.hint strong{color:var(--bl)}
+.br{display:flex;gap:8px}
+.bb2{flex:1;padding:10px;border-radius:6px;font-size:13px;font-weight:700;font-family:'Heebo',sans-serif;cursor:pointer;border:none;display:flex;align-items:center;justify-content:center;gap:6px;transition:.15s}
+.bb2.p{background:var(--ac);color:#fff}.bb2.p:hover{background:#1d4ed8}
+.bb2.y{background:rgba(243,156,18,.1);color:var(--yl);border:1px solid rgba(243,156,18,.3)}.bb2.y:hover{background:rgba(243,156,18,.2)}
+.bb2.d{background:var(--s3);color:var(--rd);border:1px solid rgba(231,76,60,.3)}
+.cp{background:var(--s2);border:1px solid var(--bd);border-radius:6px;overflow:hidden}
+.cph{background:var(--s3);border-bottom:1px solid var(--bd);padding:9px 12px;display:flex;align-items:center;justify-content:space-between}
+.cpt{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--tx2);display:flex;align-items:center;gap:7px}
+.cpd{width:7px;height:7px;border-radius:50%;background:var(--yl)}
+textarea.ce{width:100%;min-height:180px;background:#090d12;color:#79c0ff;border:none;padding:14px;font-family:'IBM Plex Mono',monospace;font-size:12px;line-height:1.7;outline:none;resize:vertical;direction:ltr}
+.cpf{padding:8px 12px;border-top:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between;background:var(--s3)}
+.cph2{font-size:11px;color:var(--tx3);font-family:'IBM Plex Mono',monospace}
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(100px);background:var(--s2);border:1px solid var(--bd2);color:var(--tx);padding:10px 18px;border-radius:6px;font-size:13px;z-index:9999;transition:transform .3s cubic-bezier(.34,1.56,.64,1);display:flex;align-items:center;gap:8px;min-width:220px;box-shadow:0 8px 30px rgba(0,0,0,.5)}
+.toast.show{transform:translateX(-50%) translateY(0)}
+.toast.ok{border-color:rgba(46,204,113,.4)}.toast.err{border-color:rgba(231,76,60,.4)}
+::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--bd2);border-radius:3px}
+.spin{display:inline-block;width:12px;height:12px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:sp .6s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.sr{display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;font-size:12px}
+/* ── Filter Bar (Finviz-style) ── */
+.fbar2{background:var(--s1);border-bottom:2px solid var(--bd);padding:10px 16px}
+.fbar2-row{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:8px;padding-bottom:10px;border-bottom:1px solid var(--bd)}
+.fbar2-actions{display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;padding-top:4px}
+.fitem{display:flex;flex-direction:column;gap:4px;min-width:0}
+.fitem label{font-size:10px;color:var(--tx2);letter-spacing:.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600;font-family:'Heebo',sans-serif}
+.fsel2{width:100%;background:var(--s2);border:1px solid var(--bd2);color:var(--tx);padding:7px 10px;border-radius:5px;font-size:12px;font-family:'Heebo',sans-serif;outline:none;cursor:pointer;appearance:auto}
+.fsel2:focus{border-color:var(--ac)}.fsel2:hover{border-color:var(--bd)}.fsel2.active{border-color:var(--ac);background:rgba(37,99,235,.1);color:var(--bl)}
+.fsel2 option{background:var(--s2)}
+.fbar-sep{width:1px;height:18px;background:var(--bd2);margin:0 3px}
+.fbar-saved{display:flex;align-items:center;gap:8px;padding-bottom:10px;margin-bottom:8px;border-bottom:1px solid var(--bd);flex-wrap:wrap}
+.fbar-saved-lbl{font-size:11px;color:var(--tx2);font-weight:700;white-space:nowrap;letter-spacing:.5px}
+/* ── Save Filter Modal ── */
+.sfmod{position:fixed;inset:0;z-index:600;background:rgba(0,0,0,.65);display:none;align-items:center;justify-content:center}
+.sfmod.open{display:flex}
+.sfbox{background:var(--s2);border:1px solid var(--bd2);border-radius:8px;padding:24px 28px;min-width:320px;box-shadow:0 20px 60px rgba(0,0,0,.7)}
+.sfbox h3{font-size:14px;font-weight:700;margin-bottom:16px;color:var(--tx)}
+.sfbox input{width:100%;background:var(--s1);border:2px solid var(--bd2);color:var(--tx);padding:9px 12px;border-radius:6px;font-size:13px;font-family:'IBM Plex Mono',monospace;outline:none;margin-bottom:16px}
+.sfbox input:focus{border-color:var(--ac)}
+.sfbox-btns{display:flex;gap:8px;justify-content:flex-end}
+/* ── View Toggle ── */
+.vtog{display:flex;gap:2px;background:var(--s3);border:1px solid var(--bd2);border-radius:5px;padding:2px}
+.vtb{padding:4px 10px;border-radius:3px;font-size:11px;font-weight:600;cursor:pointer;border:none;background:none;color:var(--tx2);font-family:'IBM Plex Mono',monospace;transition:.15s}
+.vtb.on{background:var(--ac);color:#fff}
+/* ── Chart Grid ── */
+.cgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:12px}
+@media(max-width:1200px){.cgrid{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:850px){.cgrid{grid-template-columns:repeat(2,1fr)}}
+.cgcard{background:var(--s2);border:1px solid var(--bd);border-radius:2px;overflow:hidden;cursor:pointer;transition:.12s}
+.cgcard:hover{border-color:var(--ac);transform:translateY(-1px)}
+.cgcard-hd{padding:7px 10px;display:flex;align-items:flex-start;justify-content:space-between}
+.cg-sym{font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:14px;color:var(--bl)}
+.cg-nm{font-size:10px;color:var(--tx3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:110px}
+.cg-pr{font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:600}
+.cg-chg{font-size:12px;font-family:'IBM Plex Mono',monospace;font-weight:600}
+.cgcard canvas{display:block;width:100%;height:140px}
+.cg-ld{height:140px;display:flex;align-items:center;justify-content:center;color:var(--tx3);font-size:10px;gap:5px}
+/* ── Pagination ── */
+.pgn{display:flex;align-items:center;justify-content:center;gap:4px;padding:12px;border-top:1px solid var(--bd)}
+.pgb{padding:4px 10px;border-radius:4px;font-size:11px;font-weight:600;font-family:'IBM Plex Mono',monospace;cursor:pointer;border:1px solid var(--bd2);background:var(--s2);color:var(--tx);transition:.12s;min-width:32px}
+.pgb:hover:not(:disabled){border-color:var(--ac);color:var(--ac)}.pgb.on{background:var(--ac);color:#fff;border-color:var(--ac)}.pgb:disabled{opacity:.35;cursor:not-allowed}
+/* ── Chart Page ── */
+.chart-pg{position:fixed;top:46px;left:0;right:0;bottom:0;background:var(--bg);z-index:150;display:flex;flex-direction:column}
+.chart-hd{background:var(--s1);border-bottom:1px solid var(--bd);padding:10px 18px;display:flex;align-items:center;gap:14px;flex-shrink:0}
+.ch-sym{font-family:'IBM Plex Mono',monospace;font-size:20px;font-weight:700;color:var(--bl)}
+.ch-nm{font-size:12px;color:var(--tx2);font-family:'Heebo',sans-serif}
+.ch-pr{font-family:'IBM Plex Mono',monospace;font-size:20px;font-weight:700}
+.ch-chg{font-family:'IBM Plex Mono',monospace;font-size:12px;padding:3px 8px;border-radius:4px}
+.ch-ivs{display:flex;gap:4px;margin-right:auto}
+.civ{padding:5px 13px;border-radius:4px;font-size:12px;font-weight:600;font-family:'Heebo',sans-serif;cursor:pointer;border:1px solid var(--bd2);background:none;color:var(--tx2);transition:.15s}
+.civ:hover{background:var(--s2);color:var(--tx)}.civ.on{background:var(--ac);color:#fff;border-color:var(--ac)}
+.ch-back{background:var(--s3);color:var(--tx);border:1px solid var(--bd2);padding:6px 14px;border-radius:4px;font-size:12px;font-weight:600;font-family:'Heebo',sans-serif;cursor:pointer;transition:.15s}
+.ch-back:hover{background:var(--bd)}
+/* ── Chart Config Dropdown ── */
+.ch-cfg-dd{position:relative}
+.ch-cfg-btn{background:var(--s2);border:1px solid var(--bd2);color:var(--tx);padding:5px 12px;border-radius:4px;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:7px;white-space:nowrap;font-family:'Heebo',sans-serif;transition:.12s}
+.ch-cfg-btn:hover{border-color:var(--bd)}
+.ch-cfg-btn.active{border-color:var(--ac);background:rgba(37,99,235,.1)}
+.ch-cfg-panel{display:none;position:absolute;top:calc(100% + 6px);right:0;background:var(--s2);border:1px solid var(--bd2);border-radius:7px;padding:14px 16px;box-shadow:0 8px 30px rgba(0,0,0,.65);min-width:320px;z-index:400}
+.ch-cfg-panel.open{display:block}
+.ch-cfg-sec-lbl{font-size:10px;color:var(--tx3);margin-bottom:7px;font-weight:700;text-transform:uppercase;letter-spacing:.07em}
+.ch-cfg-btns{display:flex;flex-wrap:wrap;gap:5px}
+.ch-cfg-b{background:var(--s1);border:1px solid var(--bd2);color:var(--tx2);padding:5px 11px;border-radius:4px;font-size:12px;cursor:pointer;font-family:'Heebo',sans-serif;transition:.12s}
+.ch-cfg-b:hover{border-color:var(--bd);color:var(--tx)}
+.ch-cfg-b.on{background:var(--ac);border-color:var(--ac);color:#fff;font-weight:700}
+.ch-cfg-sec+.ch-cfg-sec{margin-top:12px;padding-top:12px;border-top:1px solid var(--bd)}
+.ch-inds{display:flex;gap:5px;align-items:center}
+.ch-ind{padding:5px 13px;border-radius:4px;font-size:12px;font-weight:700;font-family:'IBM Plex Mono',monospace;cursor:pointer;border:1px solid var(--bd2);background:none;color:var(--tx3);transition:.15s;letter-spacing:.5px}
+.ch-ind:hover{color:var(--tx);border-color:var(--bd);background:var(--s2)}.ch-ind.on{background:rgba(243,156,18,.12);border-color:rgba(243,156,18,.45);color:var(--yl)}
+.ch-load{display:flex;align-items:center;justify-content:center;flex:1;color:var(--tx3);font-size:14px;gap:10px}
+tr.clickable{cursor:pointer}
+/* ── Custom Saved-Filter Dropdown ── */
+.sf-dd{position:relative;flex:1;max-width:300px;min-width:160px}
+.sf-dd-sel{display:flex;align-items:center;justify-content:space-between;padding:7px 10px;background:var(--s2);border:1px solid var(--bd2);border-radius:5px;cursor:pointer;font-size:12px;color:var(--tx);font-family:'Heebo',sans-serif;gap:8px;min-height:34px}
+.sf-dd-sel:hover{border-color:var(--ac)}
+.sf-dd-sel.has-val{border-color:var(--ac);background:rgba(37,99,235,.1);color:var(--bl)}
+.sf-dd-arrow{font-size:10px;color:var(--tx3);flex-shrink:0;transition:transform .15s}
+.sf-dd-list{position:absolute;top:calc(100% + 4px);right:0;left:0;background:var(--s2);border:1px solid var(--bd2);border-radius:5px;z-index:300;max-height:220px;overflow-y:auto;display:none;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+.sf-dd-list.open{display:block}
+.sf-dd-empty{padding:10px 14px;color:var(--tx3);font-size:12px;font-family:'Heebo',sans-serif}
+.sf-dd-item{display:flex;align-items:center;padding:7px 10px;cursor:pointer;gap:6px;border-bottom:1px solid var(--bd);transition:.1s}
+.sf-dd-item:last-child{border-bottom:none}
+.sf-dd-item:hover{background:var(--acg)}
+.sf-dd-name{flex:1;font-size:12px;font-family:'Heebo',sans-serif;color:var(--tx)}
+.sf-dd-x{background:none;border:none;color:var(--tx3);cursor:pointer;font-size:18px;padding:0 2px;line-height:1;border-radius:3px;flex-shrink:0;transition:.1s}
+.sf-dd-x:hover{color:var(--rd);background:rgba(231,76,60,.15)}
+/* ── Delete Confirm Mini Dialog ── */
+.sf-del-dlg{position:fixed;z-index:700;background:var(--s2);border:1px solid var(--bd2);border-radius:8px;padding:16px 18px;box-shadow:0 10px 36px rgba(0,0,0,.65);min-width:240px;display:none;flex-direction:column;gap:12px}
+.sf-del-dlg.open{display:flex}
+.sf-del-dlg-msg{font-size:13px;color:var(--tx);margin:0}
+.sf-del-dlg-btns{display:flex;gap:8px;justify-content:flex-end}
+/* ── JS Code Filter — dropdown style ── */
+.fcode-dd{position:relative}
+.fcode-trigger{display:flex!important;align-items:center;justify-content:space-between;cursor:pointer;padding:7px 10px;gap:6px;user-select:none}
+.fcode-trigger:hover{border-color:var(--bd)}
+.fcode-trigger.active{border-color:var(--ac)!important;background:rgba(37,99,235,.1)!important}
+.fcode-dd-arrow{font-size:11px;color:var(--tx3);flex-shrink:0;transition:transform .15s}
+.fcode-dd.open .fcode-dd-arrow{transform:rotate(180deg)}
+.fcode-preview{font-size:12px;color:var(--tx3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;font-family:'IBM Plex Mono',monospace;direction:ltr;text-align:left}
+.fcode-preview.has-code{color:#79c0ff}
+.fcode-panel{display:none;position:absolute;top:calc(100% + 4px);right:0;left:0;z-index:350;background:var(--s2);border:1px solid var(--ac);border-radius:6px;padding:12px;box-shadow:0 8px 30px rgba(0,0,0,.65);min-width:420px}
+.fcode-dd.open .fcode-panel{display:block}
+#fd-code{width:100%;background:var(--s1);border:1px solid var(--bd2);color:#79c0ff;padding:8px 10px;font-family:'IBM Plex Mono',monospace;font-size:12px;border-radius:4px;resize:vertical;outline:none;line-height:1.5;direction:ltr;height:80px;margin-bottom:8px;box-sizing:border-box;display:block}
+#fd-code:focus{border-color:var(--ac)}
+.fcode-panel-hint{font-size:10px;color:var(--tx3);font-family:'IBM Plex Mono',monospace;margin-bottom:6px;direction:ltr;text-align:left}
+.fcode-panel-btns{display:flex;gap:6px;justify-content:flex-end}
+</style>
+</head>
+<body>
+<div id="toast" class="toast"><span id="ti">✓</span><span id="tm"></span></div>
+<nav class="topnav">
+  <div class="logo"><span class="logo-box">STOCK</span>SCREENER</div>
+  <div class="nav-links">
+    <button class="nl on" onclick="pg('screener',this)">📊 סורק</button>
+    <button class="nl" onclick="pg('api',this)">🔌 חיבור</button>
+    <button class="nl" onclick="pg('code',this)">⚙️ קוד סינון</button>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px">
+    <div class="conn-pill"><div class="cdot" id="cdot"></div><span id="clbl">לא מחובר</span></div>
+    <div style="font-size:11px;color:var(--tx3);font-family:'IBM Plex Mono',monospace" id="clk"></div>
+  </div>
+</nav>
+<div class="layout">
+<aside class="sb">
+  <div class="box">
+    <div class="bh">⚡ פעולות</div>
+    <div class="bb">
+      <button class="btn bp" onclick="run()">▶ הרץ</button>
+      <button class="btn bs" onclick="rst()" style="margin-top:6px">↺ אפס פילטרים</button>
+      <button class="btn bs" onclick="xcsv()" style="margin-top:6px">⬇ ייצא CSV</button>
+      <button class="btn bs" onclick="tauto()" style="margin-top:6px">⏱ רענון אוטו</button>
+    </div>
+  </div>
+  <div class="box"><div class="bh">📊 סיכום</div><div class="bb" id="sum"><div style="font-size:12px;color:var(--tx2);text-align:center;padding:6px 0">הרץ סינון</div></div></div>
+</aside>
+<main class="ct">
+  <div id="page-screener" class="page on">
+    <!-- ── Finviz-style Filter Bar ── -->
+    <div class="fbar2">
+      <div class="fbar-saved">
+        <span class="fbar-saved-lbl">מסנן שמור:</span>
+        <div class="sf-dd" id="sf-dd">
+          <div class="sf-dd-sel" id="sf-dd-sel" onclick="toggleSFDD()">
+            <span id="sf-dd-txt">-- בחר מסנן --</span>
+            <span class="sf-dd-arrow" id="sf-dd-arrow">▶</span>
+          </div>
+          <div class="sf-dd-list" id="sf-dd-list"></div>
+        </div>
+        <button class="rb" onclick="openSaveFilterDlg()" style="font-size:12px;padding:6px 14px;white-space:nowrap">💾 שמור מסנן</button>
+      </div>
+      <div class="fbar2-row">
+        <div class="fitem"><label>פער</label><select class="fsel2" id="fd-gap" onchange="applyFilters()"><option value="">כל</option><option value="up4">עלה 4%+</option><option value="up2">עלה 2%+</option><option value="up1">עלה 1%+</option><option value="dn1">ירד 1%+</option><option value="dn2">ירד 2%+</option><option value="dn4">ירד 4%+</option></select></div>
+        <div class="fitem"><label>מדד ערך מוסף (14)</label><select class="fsel2" id="fd-rsi" onchange="applyFilters()"><option value="">כל</option><option value="ob">קנייתיפי (70+)</option><option value="os">מכירתיפי (30-)</option><option value="mid">ניטרלי (40-60)</option></select></div>
+        <div class="fitem"><label>תנודתיות</label><select class="fsel2" id="fd-volt" onchange="applyFilters()"><option value="">כל</option><option value="vh">מאוד גבוה</option><option value="h">גבוה</option><option value="l">נמוך</option><option value="vl">מאוד נמוך</option></select></div>
+        <div class="fitem"><label>ביצועים</label><select class="fsel2" id="fd-perf" onchange="applyFilters()"><option value="">כל</option><option value="10">עלה 10%+</option><option value="5">עלה 5%+</option><option value="2">עלה 2%+</option><option value="0">עלה (כלשהו)</option><option value="-2">ירד 2%+</option><option value="-5">ירד 5%+</option><option value="-10">ירד 10%+</option></select></div>
+        <div class="fitem"><label>ביצועים 2</label><select class="fsel2" id="fd-perf2" onchange="applyFilters()"><option value="">כל</option><option value="20">עלה 20%+</option><option value="50">עלה 50%+</option><option value="100">עלה 100%+</option><option value="-20">ירד 20%+</option><option value="-50">ירד 50%+</option></select></div>
+      </div>
+      <div class="fbar2-row">
+        <div class="fitem"><label>ממוצע נע פשוט של 20 יום</label><select class="fsel2" id="fd-sma20" onchange="applyFilters()"><option value="">כל</option><option value="above">מחיר מעל</option><option value="below">מחיר מתחת</option></select></div>
+        <div class="fitem"><label>ממוצע נע פשוט של 50 יום</label><select class="fsel2" id="fd-sma50" onchange="applyFilters()"><option value="">כל</option><option value="above">מחיר מעל</option><option value="below">מחיר מתחת</option></select></div>
+        <div class="fitem"><label>ממוצע נע פשוט של 200 יום</label><select class="fsel2" id="fd-sma200" onchange="applyFilters()"><option value="">כל</option><option value="above">מחיר מעל</option><option value="below">מחיר מתחת</option></select></div>
+        <div class="fitem"><label>לשנות</label><select class="fsel2" id="fd-open" onchange="applyFilters()"><option value="">כל</option><option value="up5">עלה 5%+ מהפתיחה</option><option value="up2">עלה 2%+ מהפתיחה</option><option value="up">עלה מהפתיחה</option><option value="dn">ירד מהפתיחה</option><option value="dn2">ירד 2%+ מהפתיחה</option><option value="dn5">ירד 5%+ מהפתיחה</option></select></div>
+        <div class="fitem"><label>ATR</label><select class="fsel2" id="fd-atr" onchange="applyFilters()"><option value="">כל</option><option value="h">גבוה</option><option value="l">נמוך</option></select></div>
+      </div>
+      <div class="fbar2-row">
+        <div class="fitem"><label>תבנית</label><select class="fsel2" id="fd-pat" onchange="applyFilters()"><option value="">כל</option><option value="bull">עלייה</option><option value="bear">ירידה</option></select></div>
+        <div class="fitem"><label>שיא/שפל של 20 יום</label><select class="fsel2" id="fd-h20" onchange="applyFilters()"><option value="">כל</option><option value="nh">שיא יומי חדש</option><option value="nl">שפל יומי חדש</option><option value="nr">קרוב לשיא היומי</option></select></div>
+        <div class="fitem"><label>שיא/שפל של 50 יום</label><select class="fsel2" id="fd-h50" onchange="applyFilters()"><option value="">כל</option><option value="nh">שיא</option><option value="nl">שפל</option><option value="nr">קרוב לשיא</option></select></div>
+        <div class="fitem"><label>שיא/שפל 52 שבועות</label><select class="fsel2" id="fd-h52" onchange="applyFilters()"><option value="">כל</option><option value="nh">שיא 52W</option><option value="nl">שפל 52W</option><option value="nr">קרוב לשיא (97%+)</option><option value="nrl">קרוב לשפל (103%-)</option></select></div>
+        <div class="fitem"><label>שיא/שפל של כל הזמנים</label><select class="fsel2" id="fd-hath" onchange="applyFilters()"><option value="">כל</option><option value="ath">קרוב לשיא</option><option value="atl">קרוב לשפל</option></select></div>
+      </div>
+      <div class="fbar2-row" style="margin-bottom:8px;padding-bottom:10px">
+        <div class="fitem"><label>שיני לאחר שעות הפעילות</label><select class="fsel2" id="fd-ahc" onchange="applyFilters()"><option value="">כל</option><option value="up">עלה</option><option value="dn">ירד</option></select></div>
+        <div class="fitem"><label>סגירה לאחר שעות הפעילות</label><select class="fsel2" id="fd-ahp" onchange="applyFilters()"><option value="">כל</option></select></div>
+        <div class="fitem"><label>סוח אמיתי ממוצע</label><select class="fsel2" id="fd-atr2" onchange="applyFilters()"><option value="">כל</option><option value="h">גבוה (מעל $2)</option><option value="m">בינוני ($0.5–$2)</option><option value="l">נמוך (מתחת $0.5)</option></select></div>
+        <div class="fitem"><label>בטא</label><select class="fsel2" id="fd-beta" onchange="applyFilters()"><option value="">כל</option><option value="vh">מאוד גבוה (2+)</option><option value="h">גבוה (1.5+)</option><option value="m">ממוצע (0.5–1.5)</option><option value="l">נמוך (פחות 0.5)</option></select></div>
+        <div class="fitem"><label>פמוץ</label><select class="fsel2" id="fd-macd" onchange="applyFilters()"><option value="">כל</option><option value="pos">חיובי</option><option value="neg">שלילי</option><option value="cu">חצה למעלה</option><option value="cd">חצה למטה</option></select></div>
+      </div>
+      <div class="fbar2-actions">
+        <div class="fitem"><label>בורסה</label><select class="fsel2" id="fd-ex" onchange="applyFilters()"><option value="">כל</option><option value="NASDAQ">NASDAQ</option><option value="NYSE">NYSE</option><option value="AMEX">AMEX</option><option value="SMART">SMART</option></select></div>
+        <div class="fitem"><label>מחיר</label><select class="fsel2" id="fd-pr" onchange="applyFilters()"><option value="">כל</option><option value="0-1">פחות $1</option><option value="1-5">$1–$5</option><option value="5-20">$5–$20</option><option value="20-50">$20–$50</option><option value="50-100">$50–$100</option><option value="100-200">$100–$200</option><option value="200-">מעל $200</option></select></div>
+        <div class="fitem"><label>נפח</label><select class="fsel2" id="fd-vol" onchange="applyFilters()"><option value="">כל</option><option value="100000">מעל 100K</option><option value="500000">מעל 500K</option><option value="1000000">מעל 1M</option><option value="5000000">מעל 5M</option><option value="10000000">מעל 10M</option></select></div>
+        <div class="fitem"><label>נפח יחסי</label><select class="fsel2" id="fd-volr" onchange="applyFilters()"><option value="">כל</option><option value="above">מעל הממוצע</option><option value="high">גבוה (×1.5)</option><option value="vhigh">מאוד גבוה (×3)</option></select></div>
+        <div style="display:flex;gap:6px;align-self:flex-end">
+          <button class="rb" onclick="applyFilters()" style="font-size:12px;padding:7px 18px">+ סינון</button>
+          <button class="sb2" onclick="rst()" style="font-size:12px;padding:6px 14px">↺ אפס</button>
+        </div>
+        <!-- ── קוד מסנן JS — בצד שמאל (ממול לפילטרים) ── -->
+        <div class="fitem" id="fcode-row" style="margin-right:auto;min-width:140px;max-width:200px">
+          <label>⌨️ קוד מסנן JS</label>
+          <div class="fcode-dd" id="fcode-dd">
+            <div class="fsel2 fcode-trigger" id="fcode-trigger" onclick="toggleFcodeDD()">
+              <span class="fcode-preview" id="fcode-preview">הקלד קוד...</span>
+              <span class="fcode-dd-arrow" id="fcode-dd-arrow">▾</span>
+            </div>
+            <div class="fcode-panel" id="fcode-panel">
+              <div class="fcode-panel-hint">// s.price &gt; 10 &amp;&amp; s.changePercent &gt; 2</div>
+              <textarea id="fd-code" spellcheck="false"
+                placeholder="// s.price > 10&#10;// s.changePercent > 2&#10;// s.volume > s.avgVolume * 3"
+                oninput="updateFcodePreview();applyFilters()"></textarea>
+              <div class="fcode-panel-btns">
+                <button class="sb2" onclick="clearFcode()" style="font-size:11px;padding:4px 10px">✕ נקה</button>
+                <button class="rb" onclick="applyFilters();closeFcodeDD()" style="font-size:11px;padding:5px 12px">▶ הרץ וסגור</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- hidden stat IDs for JS compat -->
+    <span id="s0" style="display:none"></span><span id="s1" style="display:none"></span><span id="s2" style="display:none"></span><span id="s3" style="display:none"></span><span id="s4" style="display:none"></span>
+    <div class="tw">
+      <div class="tt">
+        <div class="ttl">תוצאות</div>
+        <div class="ta">
+          <div class="vtog">
+            <button class="vtb on" id="view-list" onclick="setView('list')">☰ רשימה</button>
+            <button class="vtb" id="view-grid" onclick="setView('grid')">⊞ גרפים</button>
+          </div>
+          <div class="fbar-sep" style="margin:0 2px"></div>
+          <div class="ac-wrap" id="ac-wrap">
+            <input class="ac-in" id="ac-in" placeholder="סמל / חברה..." autocomplete="off" spellcheck="false"
+              oninput="acInput(this.value)" onkeydown="acKey(event)">
+            <button class="rb" onclick="acGo()" id="sym-btn">🔍</button>
+            <div class="ac-drop" id="ac-drop"></div>
+          </div>
+          <input type="text" class="srch" id="srch" placeholder="חיפוש..." oninput="ftbl(this.value)">
+          <button class="rb" onclick="run()" id="rbtn">▶ הרץ</button>
+          <button class="sb2" onclick="xcsv()">⬇ CSV</button>
+          <button class="sb2" id="ab" onclick="tauto()">⏱ אוטו</button>
+        </div>
+      </div>
+      <div id="tbl"><div class="empty"><div class="ei">📡</div><div class="et">ממתין לנתונים</div><div class="es">לחץ <strong>"🔌 חיבור"</strong> ← התחבר ל-IB או הכנס Twelve Data Key ← לחץ "▶ הרץ"</div></div></div>
+    </div>
+    <div id="cgrid-wrap" style="display:none"></div>
+  </div>
+  <div id="page-api" class="page">
+    <div class="api-wrap">
+      <div class="ac">
+        <div class="ach">🏦 Interactive Brokers — TWS</div>
+        <div class="acb">
+          <div id="ib-badge" class="abadge no">✗ לא מחובר ל-IB</div>
+          <div class="hint"><strong>TWS פתוח? מצוין!</strong><br>פורט: <strong>7497</strong> (Demo) או <strong>7496</strong> (Live)<br>לחץ "התחבר ל-IB" למטה</div>
+          <div class="fr"><label>פורט TWS</label><input type="number" class="ki" id="ib-port" value="7497" style="margin-bottom:0"></div>
+          <div style="margin-top:10px" class="br">
+            <button class="bb2 p" onclick="connIB()" id="ib-btn">🔌 התחבר ל-IB</button>
+            <button class="bb2 y" onclick="runIB()" id="ib-run">▶ הרץ</button>
+            <button class="bb2 d" onclick="disconnIB()" id="ib-disc">⛔ נתק</button>
+          </div>
+        </div>
+      </div>
+      <div class="ac">
+        <div class="ach">📊 Twelve Data — גיבוי</div>
+        <div class="acb">
+          <div id="td-badge" class="abadge no">✗ לא מחובר ל-Twelve Data</div>
+          <label style="display:block;font-size:11px;color:var(--tx2);margin-bottom:6px;font-weight:600">API Key מ-twelvedata.com</label>
+          <input type="text" class="ki" id="td-key" placeholder="הדבק API Key כאן..." autocomplete="off" spellcheck="false">
+          <div class="br">
+            <button class="bb2 p" onclick="stest()" id="tbtn">💾 שמור ובדוק</button>
+            <button class="bb2 d" onclick="clr()" id="td-disc">⛔ נתק</button>
+          </div>
+          <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--bd)">
+            <div style="font-size:11px;color:var(--tx2);margin-bottom:8px">טעינת כל סמלי המניות לאוטו-קומפליט (NASDAQ + NYSE + AMEX):</div>
+            <button class="bb2 p" id="fetch-syms-btn" onclick="fetchAllSymbols()" style="width:100%">📥 טען כל הסימבולים</button>
+            <div id="fetch-syms-status" style="font-size:11px;color:var(--tx2);margin-top:6px;font-family:'IBM Plex Mono',monospace"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div id="page-code" class="page">
+    <div style="max-width:700px">
+      <div class="cp">
+        <div class="cph">
+          <div class="cpt"><div class="cpd"></div>קוד סינון — JavaScript</div>
+          <div style="display:flex;gap:6px">
+            <button onclick="rcode()" class="rb">▶ הפעל</button>
+            <button onclick="xcode()" class="rb" style="background:var(--s3);border:1px solid var(--bd2)">↺ איפוס</button>
+          </div>
+        </div>
+        <textarea class="ce" id="jsc" spellcheck="false">function screenStocks(stocks) {
+  return stocks.filter(stock => {
+    // return stock.changePercent > 2 && stock.volume > stock.avgVolume * 1.5;
+    return true;
+  });
+}</textarea>
+        <div class="cpf"><span class="cph2">// JavaScript</span><button onclick="svcode()" style="background:none;border:none;color:var(--tx2);font-size:11px;cursor:pointer;font-family:'Heebo',sans-serif">💾 שמור</button></div>
+      </div>
+    </div>
+  </div>
+</main>
+</div>
+<script>
+const BASE=(location.hostname==='localhost'||location.hostname==='127.0.0.1')?'http://localhost:5000':location.origin;
+let all=[],filt=[],cfn=null,sCol='changePercent',sDir=-1,autoOn=false,autoT=null;
+
+// ── שמות חברות בעברית ──────────────────────────────────────────────────────
+const HEBREW_NAMES={
+  'AAPL':'אפל','MSFT':'מיקרוסופט','NVDA':'אנבידיה','GOOGL':'גוגל','AMZN':'אמזון',
+  'META':'מטא','TSLA':'טסלה','AMD':'AMD','INTC':'אינטל','ORCL':'אורקל',
+  'CSCO':'סיסקו','QCOM':'קוואלקום','TXN':'טקסס אינסטרומנטס','AMAT':'אפלייד מטריאלס','MU':'מיקרון',
+  'LRCX':"לאם ריסרץ'",'KLAC':'KLA Corp','MRVL':'מארוול','ADSK':'אוטודסק','FTNT':'פורטינט',
+  'PANW':'פאלו אלטו','CRWD':'קראוד סטרייק','ZS':'זסקיילר','DDOG':'דטה-דוג','SNOW':'סנופלייק',
+  'PLTR':'פאלנטיר','UBER':'אובר','ABNB':'אירבנב','CRM':'סיילספורס','NOW':'סרוויס נאו',
+  'WDAY':'ורקדיי','VEEV':'ויאווה','NFLX':'נטפליקס','DIS':'דיסני','CMCSA':'קומקאסט',
+  'T':'AT&T','VZ':'ורייזון','TMUS':'T-Mobile','JPM':'JPMorgan','BAC':'בנק אוף אמריקה',
+  'WFC':'וולס פארגו','GS':'גולדמן זקס','MS':'מורגן סטנלי','C':'סיטיגרופ','V':'ויזה',
+  'MA':'מאסטרקארד','PYPL':'פייפאל','JNJ':"ג'ונסון אנד ג'ונסון",'UNH':"יונייטד הלת'",'PFE':'פייזר',
+  'ABBV':'אבווי','MRK':'מרק','LLY':'אלי לילי','BMY':'בריסטול מיירס','AMGN':'אמגן',
+  'GILD':'גיליאד','REGN':"ריג'נרון",'VRTX':'ורטקס','WMT':'וולמארט','HD':'הום דיפו',
+  'MCD':'מקדונלדס','SBUX':'סטארבקס','NKE':'נייקי','TGT':'טארגט','COST':'קוסטקו',
+  'XOM':'אקסון מוביל','CVX':'שברון','COP':'קונוקו פיליפס','EOG':'EOG Resources','BA':'בואינג',
+  'GE':"ג'נרל אלקטריק",'CAT':'קטרפילר','DE':"ג'ון דיר",'MMM':'3M','HON':'האניוול',
+  'RTX':"ריית'יאון",'LMT':'לוקהיד מרטין','UPS':'UPS','FDX':'פדקס','NEE':'נקסטירה',
+  'PG':'פרוקטר אנד גמבל','KO':'קוקה-קולה','PEP':'פפסיקו','PM':'פיליפ מוריס',
+  'SPY':'SPDR S&P 500 ETF','QQQ':'Invesco QQQ ETF','IWM':'iShares Russell 2000','GLD':'SPDR Gold ETF',
+  'F':'פורד','GM':"ג'נרל מוטורס",'COIN':'קוינבייס','SQ':'בלוק','HOOD':'רובינהוד',
+  'SNAP':'סנאפ','ROKU':'רוקו','SHOP':'שופיפיי','NET':'קלאודפלר','TWLO':'טווליו',
+  'TSM':'TSMC','ASML':'ASML',
+  // ── Semiconductors (new) ─────────────────────────────────────────────────
+  'AVGO':'ברודקום','ADBE':'אדובי','INTU':'אינטואיט','NXPI':'NXP','ON':'ON Semiconductor',
+  'SNPS':'סינופסיס','CDNS':'קדנס','MCHP':"מיקרוצ'יפ",'MPWR':'מונוליתיק','SWKS':'סקיוורקס',
+  'TER':'טרדיין','ENPH':'אנפייס',
+  // ── Software & Cloud (new) ────────────────────────────────────────────────
+  'MDB':'מונגו DB','HUBS':'הבספוט','OKTA':'אוקטה','ZM':'זום','DOCU':'דוקוסיין',
+  'BILL':'BILL.com','CFLT':'קונפלואנט','GTLB':'גיטלאב','SMAR':'סמארטשיט','ZI':'זום אינפו',
+  // ── Cybersecurity (new) ────────────────────────────────────────────────────
+  'S':'סנטינל וואן','TENB':'טנבל',
+  // ── Hardware (new) ────────────────────────────────────────────────────────
+  'HPQ':'HP Inc.','HPE':'HP Enterprise','ANET':'אריסטה','NTAP':'נטאפ','JNPR':"ג'וניפר",
+  // ── Internet (new) ────────────────────────────────────────────────────────
+  'LYFT':'ליפט','DASH':'דורדאש','ETSY':'אטסי','EBAY':'איביי','PINS':'פינטרסט','RDDT':'רדיט',
+  // ── Media (new) ───────────────────────────────────────────────────────────
+  'WBD':'Warner Bros Discovery',
+  // ── Banks (new) ───────────────────────────────────────────────────────────
+  'USB':'US Bancorp','PNC':'PNC Financial','TFC':'Truist','BK':'BNY מלון',
+  // ── Cards & Payments (new) ────────────────────────────────────────────────
+  'AXP':'אמריקן אקספרס','COF':'Capital One',
+  // ── Investment (new) ──────────────────────────────────────────────────────
+  'SCHW':'שוואב','BLK':'בלקרוק','SPGI':'S&P Global','ICE':'ICE','CME':'CME Group',
+  'MCO':'מודיס','MSCI':'MSCI','FIS':'FIS','CBOE':'CBOE','NDAQ':'נאסד"ק Inc.',
+  // ── Insurance (new) ───────────────────────────────────────────────────────
+  'AIG':'AIG','MET':'מטלייף','PRU':'פרודנשל','ALL':'אולסטייט','TRV':'טראוולרס',
+  'CB':"צ'אב",'AON':'אאון','MMC':'מארש',
+  // ── Healthcare (new) ──────────────────────────────────────────────────────
+  'MRNA':'מודרנה','BNTX':'ביונטק','HUM':'הומנה','CI':'סיגנה','CVS':'CVS Health',
+  'MCK':'מקסון','CAH':"קרדינל הלת'",
+  // ── Medical (new) ─────────────────────────────────────────────────────────
+  'MDT':'מדטרוניק','SYK':'סטרייקר','BSX':'בוסטון סיינטיפיק','ABT':'אבוט',
+  'TMO':'תרמו פישר','DHR':'דנהר','DXCM':'דקסקום','EW':'אדוארדס','A':'אגילנט',
+  // ── Retail (new) ──────────────────────────────────────────────────────────
+  'LOW':'לואוז','DG':"דולר ג'נרל",'DLTR':'דולר טרי',
+  // ── Consumer (new) ────────────────────────────────────────────────────────
+  'MO':'אלטריה','CL':'קולגייט','KMB':'קימברלי-קלארק','EL':'אסתי לודר',
+  'MDLZ':'מונדלז','GIS':"ג'נרל מילס",
+  // ── Energy (new) ──────────────────────────────────────────────────────────
+  'MPC':'מראתון פטרוליום','VLO':'ואלרו','PSX':'פיליפס 66','OXY':'אוקסידנטל',
+  'DVN':'דבון','HAL':'הליבורטון','SLB':'שלומברגה',
+  // ── Industrial (new) ──────────────────────────────────────────────────────
+  'NOC':"נורת'רופ גרומן",'GD':"ג'נרל דיינמיקס",'ETN':'איטון','EMR':'אמרסון',
+  'ROK':'רוקוול','PH':'פרקר הניפין','ITW':'Illinois Tool Works','IR':'אינגרסול',
+  // ── Utilities (new) ───────────────────────────────────────────────────────
+  'DUK':"דיוק אנרג'י",'SO':"סאות'רן",'D':'דומיניון','AEP':'AEP','EXC':'אקסלון','XEL':'Xcel',
+  // ── Real Estate (new) ─────────────────────────────────────────────────────
+  'PLD':"פרולוג'יס",'CCI':'Crown Castle','EQIX':'אקוינייקס','PSA':'Public Storage',
+  'DLR':'Digital Realty','SBAC':'SBA Comm.','WELL':'Welltower',
+  // ── Materials (new) ───────────────────────────────────────────────────────
+  'LIN':'לינד','APD':'אייר פרודקטס','ECL':'אקולאב','NEM':'ניומונט','FCX':'פרידפורט',
+  'AA':'אלקואה','ALB':'אלברמארל','DD':'דופון','NUE':'ניוקור',
+  // ── High-growth (new) ─────────────────────────────────────────────────────
+  'SMCI':'סופרמיקרו','APP':'AppLovin','MSTR':'מיקרוסטרטגי','AI':'C3.ai','ARM':'ARM Holdings',
+  // ── ETFs (new) ────────────────────────────────────────────────────────────
+  'TLT':'Treasury Bond ETF','DIA':'Dow Jones ETF','XLF':'Financial ETF',
+  'XLK':'Technology ETF','XLV':'Healthcare ETF','ARKK':'ARK Innovation ETF',
+};
+function hName(ticker){ return HEBREW_NAMES[ticker] || HEBREW_NAMES_EXTRA[ticker] || null; }
+
+// ── ממיר מקלדת עברית → אנגלית (לחיפוש סמבול) ─────────────────────────────
+const HEB_TO_EN={
+  'ש':'A','נ':'B','ב':'C','ג':'D','ק':'E','כ':'F','ע':'G','י':'H',
+  'ן':'I','ח':'J','ל':'K','ך':'L','צ':'M','מ':'N','ם':'O','פ':'P',
+  'ר':'R','ד':'S','א':'T','ו':'U','ה':'V','ס':'X','ט':'Y','ז':'Z',
+  'ף':'P','ץ':'M',
+};
+function fixHebrew(s){return s.split('').map(c=>HEB_TO_EN[c]||c).join('').toUpperCase();}
+setInterval(()=>{document.getElementById('clk').textContent=new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',second:'2-digit'});},1000);
+function pg(n,el){
+  // סוגר גרף אם פתוח — כדי שפס הניווט יעבוד מתוך הגרף
+  const cp=document.getElementById('page-chart');
+  if(cp&&cp.style.display!=='none')closeChart();
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));
+  document.querySelectorAll('.nl').forEach(b=>b.classList.remove('on'));
+  document.getElementById('page-'+n).classList.add('on');
+  el.classList.add('on');
+}
+
+async function connIB(){
+  const btn=document.getElementById('ib-btn');
+  btn.innerHTML='<div class="spin"></div>';btn.disabled=true;
+  const port=parseInt(document.getElementById('ib-port').value)||7497;
+  try{
+    const r=await fetch(BASE+'/api/connect_ib',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({port})});
+    const j=await r.json();
+    if(j.status==='ok'){setConnIB(true);toast('✓ מחובר ל-IB! חשבון: '+j.account,'ok');}
+    else{toast('שגיאת IB: '+(j.message||'בדוק TWS'),'err');setConnIB(false);}
+  }catch(e){toast('שגיאה: '+e.message,'err');}
+  btn.innerHTML='🔌 התחבר ל-IB';btn.disabled=false;
+}
+
+async function runIB(){
+  document.getElementById('tbl').innerHTML='<div class="pw"><div class="pt">טוען מניות מ-IB...</div><div class="pb"><div class="pf" style="width:60%"></div></div></div>';
+  try{
+    const r=await fetch(`${BASE}/api/stocks_ib`);
+    const j=await r.json();
+    if(j.error)throw new Error(j.error);
+    all=j.stocks||[];
+    setConn(true,'IB');
+    filt=filter(all);render(filt);stats(filt);summ(filt);
+    document.getElementById('s4').textContent=new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
+    toast('✓ '+all.length+' מניות מ-IB','ok');
+  }catch(e){toast('שגיאת IB: '+e.message,'err');}
+}
+
+async function run(){
+  const key=document.getElementById('td-key').value.trim();
+  try{
+    const r=await fetch(BASE+'/api/ib_status');
+    const j=await r.json();
+    if(j.connected){await runIB();return;}
+  }catch(e){}
+  if(!key){toast('חבר IB או הכנס Twelve Data Key','err');pg('api',document.querySelectorAll('.nl')[1]);return;}
+  const btn=document.getElementById('rbtn');btn.innerHTML='<div class="spin"></div>';btn.disabled=true;
+  document.getElementById('tbl').innerHTML='<div class="pw"><div class="pt">טוען ~220 מניות...</div><div class="pb"><div class="pf" style="width:60%"></div></div></div>';
+  try{
+    await fetch(BASE+'/api/key',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key})});
+    const r=await fetch(`${BASE}/api/stocks`);
+    const j=await r.json();
+    if(j.error)throw new Error(j.error);
+    all=j.stocks||[];
+    setConn(true,'TD');
+  }catch(e){toast('שגיאה: '+e.message,'err');btn.innerHTML='▶ הרץ';btn.disabled=false;return;}
+  if(cfn){try{all=cfn(all);}catch(e){}}
+  filt=filter(all);render(filt);stats(filt);summ(filt);
+  document.getElementById('s4').textContent=new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
+  btn.innerHTML='▶ הרץ';btn.disabled=false;
+  toast('✓ '+all.length+' מניות','ok');
+}
+
+// ── Autocomplete engine ───────────────────────────────────────────────────────
+let acSymbols=[], acFuse=null, acSel=-1;
+let HEBREW_NAMES_EXTRA = {};
+
+(async function initAC(){
+  try{
+    const r=await fetch(BASE+'/api/symbols');
+    acSymbols=await r.json();
+    acFuse=new Fuse(acSymbols,{
+      keys:[{name:'ticker',weight:3},{name:'name',weight:1}],
+      threshold:0.35, includeScore:true,
+      minMatchCharLength:2, ignoreLocation:true, shouldSort:true
+    });
+    console.log(`Autocomplete ready: ${acSymbols.length} symbols in memory`);
+  }catch(e){console.warn('Symbols not loaded:',e);}
+    // Load Hebrew names from server
+    try{
+      const rh = await fetch(BASE+'/api/hebrew_names');
+      HEBREW_NAMES_EXTRA = await rh.json();
+      console.log(`Hebrew names loaded: ${Object.keys(HEBREW_NAMES_EXTRA).length}`);
+    }catch(e){console.warn('Hebrew names not loaded:', e);}
+})();
+
+function acSearch(q){
+  if(!q||q.length<2)return[];
+  const qu=q.toUpperCase().trim();
+  const t0=performance.now();
+
+  // בנה מאגר: מניות שנטענו (עם נתוני מחיר) + רשימת סמלים
+  const loaded=all.map(s=>({ticker:s.ticker,name:s.name||s.ticker,exchange:s.exchange||'',live:true}));
+  const loadedTickers=new Set(loaded.map(s=>s.ticker));
+  const base=[...loaded,...(acSymbols||[]).filter(s=>!loadedTickers.has(s.ticker))];
+
+  // חיפוש ישיר (ללא Fuse) לביצועים מירביים
+  const exact=[], prefix=[], nameMatch=[], rest=[];
+  const ql=q.toLowerCase();
+  for(const s of base){
+    if(s.ticker===qu) exact.push(s);
+    else if(s.ticker.startsWith(qu)) prefix.push(s);
+    else if(s.name.toLowerCase().includes(ql)) nameMatch.push(s);
+  }
+
+  // Fuse רק אם יש מספיק סמלים ואין מספיק תוצאות ישירות
+  if(exact.length+prefix.length<3 && acFuse){
+    const fuseRes=acFuse.search(q,{limit:20});
+    for(const r of fuseRes){
+      const s=r.item;
+      if(!exact.find(x=>x.ticker===s.ticker)&&!prefix.find(x=>x.ticker===s.ticker)&&!nameMatch.find(x=>x.ticker===s.ticker))
+        rest.push(s);
+    }
+  }
+
+  prefix.sort((a,b)=>a.ticker.length-b.ticker.length);
+  const results=[...exact,...prefix,...nameMatch,...rest].slice(0,10);
+  console.debug(`AC "${q}" → ${results.length} in ${(performance.now()-t0).toFixed(1)}ms`);
+  return results;
+}
+
+function acRender(results, q){
+  const drop=document.getElementById('ac-drop');
+  acSel=-1;
+  if(!results.length){
+    drop.innerHTML=`<div class="ac-hint">אין תוצאות עבור "${q}"</div>`;
+    drop.classList.add('open'); return;
+  }
+  drop.innerHTML=results.map(s=>
+    `<div class="ac-item" data-t="${s.ticker}" onclick="acPick('${s.ticker}')">
+      <span class="ac-ticker">${s.ticker}</span>
+      <span class="ac-name">${hName(s.ticker)||s.name}</span>
+      <span class="ac-xch">${s.exchange}</span>
+    </div>`
+  ).join('');
+  drop.classList.add('open');
+}
+
+function acPick(ticker){
+  document.getElementById('ac-in').value=ticker;
+  document.getElementById('ac-drop').classList.remove('open');
+  acSel=-1;
+  srchSym(ticker);
+}
+
+function acGo(){
+  const v=document.getElementById('ac-in').value.trim().toUpperCase();
+  document.getElementById('ac-drop').classList.remove('open');
+  if(v) srchSym(v);
+}
+
+function acKey(e){
+  const drop=document.getElementById('ac-drop');
+  const items=drop.querySelectorAll('.ac-item');
+  if(e.key==='Enter'){e.preventDefault();
+    if(acSel>=0&&items[acSel]) acPick(items[acSel].dataset.t);
+    else acGo(); return;
+  }
+  if(e.key==='Escape'){drop.classList.remove('open');acSel=-1;return;}
+  if(!items.length)return;
+  if(e.key==='ArrowDown'){e.preventDefault();acSel=Math.min(acSel+1,items.length-1);}
+  else if(e.key==='ArrowUp'){e.preventDefault();acSel=Math.max(acSel-1,-1);}
+  else return;
+  items.forEach((it,i)=>it.classList.toggle('acs',i===acSel));
+  if(acSel>=0)items[acSel].scrollIntoView({block:'nearest'});
+}
+
+function debounce(fn,ms){let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),ms);};}
+const acInputD=debounce(q=>{
+  if(q.length<2){document.getElementById('ac-drop').classList.remove('open');return;}
+  acRender(acSearch(q),q);
+},150);
+function acInput(v){
+  const fixed=fixHebrew(v);
+  if(fixed!==v){document.getElementById('ac-in').value=fixed;v=fixed;}
+  acInputD(v);
+}
+
+document.addEventListener('click',e=>{
+  if(!document.getElementById('ac-wrap').contains(e.target))
+    document.getElementById('ac-drop').classList.remove('open');
+  const sfdd=document.getElementById('sf-dd');
+  const sfdlg=document.getElementById('sf-del-dlg');
+  if(sfdd&&!sfdd.contains(e.target)&&sfdlg&&!sfdlg.contains(e.target))closeSFDD();
+  const fcdd=document.getElementById('fcode-dd');
+  if(fcdd&&!fcdd.contains(e.target))closeFcodeDD();
+  const chcfg=document.getElementById('ch-cfg-dd');
+  if(chcfg&&!chcfg.contains(e.target))closeChCfg();
+});
+
+async function srchSym(sym){
+  sym=(sym||document.getElementById('ac-in').value).trim().toUpperCase();
+  if(!sym)return;
+  const btn=document.getElementById('sym-btn');btn.innerHTML='<div class="spin"></div>';
+  try{
+    const key=document.getElementById('td-key').value.trim();
+    if(key)await fetch(BASE+'/api/key',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key})});
+    const r=await fetch(`${BASE}/api/search?symbol=${sym}`);
+    const s=await r.json();
+    if(s.error){
+      const nls=document.querySelectorAll('.nl');
+      if(s.error.toLowerCase().includes('apikey')||s.error.toLowerCase().includes('api key')||s.error.toLowerCase().includes('הכנס')){
+        toast('הכנס API Key בדף החיבור','err');
+        pg('api',nls[1]);
+      } else {
+        toast('לא נמצא: '+sym,'err');
+      }
+      btn.innerHTML='🔍';return;
+    }
+    all=[s,...all.filter(x=>x.ticker!==s.ticker)];
+    // מניה שחיפשו ידנית תמיד מוצגת ראשונה, גם אם הפילטרים מסננים אותה
+    const rest=filter(all.filter(x=>x.ticker!==s.ticker));
+    filt=[s,...rest];
+    stockMap[s.ticker]=s;
+    render(filt);stats(filt);
+    if(currentView==='grid'){gridPage=0;renderGrid();}
+    toast('✓ '+sym+': $'+s.price.toFixed(2),'ok');
+    pg('screener',document.querySelectorAll('.nl')[0]);
+  }catch(e){toast('שגיאת רשת','err');}
+  btn.innerHTML='🔍';
+}
+
+function gv(id){const el=document.getElementById(id);return el?el.value:'';}
+function filter(d){return applyFilterLogic(d);}
+function applyFilterLogic(d){
+  const gap=gv('fd-gap'),perf=gv('fd-perf'),perf2=gv('fd-perf2'),
+        openChg=gv('fd-open'),h52=gv('fd-h52'),hath=gv('fd-hath'),
+        h20=gv('fd-h20'),vol=gv('fd-vol'),volr=gv('fd-volr'),
+        pr=gv('fd-pr'),ex=gv('fd-ex');
+  let result=d.filter(s=>{
+    // ביצועים (change %)
+    if(perf){const c=parseFloat(perf);if(c>=0&&s.changePercent<c)return false;if(c<0&&s.changePercent>c)return false;}
+    if(perf2){const c=parseFloat(perf2);if(c>=0&&s.changePercent<c)return false;if(c<0&&s.changePercent>c)return false;}
+    // פער — gap = (open - prevClose) / prevClose * 100
+    if(gap&&s.open){
+      const prev=s.price-s.change;
+      const g=prev?((s.open-prev)/Math.abs(prev)*100):0;
+      if(gap==='up4'&&g<4)return false;
+      if(gap==='up2'&&g<2)return false;
+      if(gap==='up1'&&g<1)return false;
+      if(gap==='dn1'&&g>-1)return false;
+      if(gap==='dn2'&&g>-2)return false;
+      if(gap==='dn4'&&g>-4)return false;
+    }
+    // לשנות — change from open
+    if(openChg&&s.open){
+      const co=s.open?((s.price-s.open)/s.open*100):0;
+      if(openChg==='up5'&&co<5)return false;
+      if(openChg==='up2'&&co<2)return false;
+      if(openChg==='up'&&co<0)return false;
+      if(openChg==='dn'&&co>0)return false;
+      if(openChg==='dn2'&&co>-2)return false;
+      if(openChg==='dn5'&&co>-5)return false;
+    }
+    // שיא/שפל 52W
+    if(h52){
+      if(h52==='nh'&&(!s.fiftyTwoWeekHigh||s.price<s.fiftyTwoWeekHigh))return false;
+      if(h52==='nl'&&(!s.fiftyTwoWeekLow||s.price>s.fiftyTwoWeekLow))return false;
+      if(h52==='nr'&&(!s.fiftyTwoWeekHigh||s.price<s.fiftyTwoWeekHigh*0.97))return false;
+      if(h52==='nrl'&&(!s.fiftyTwoWeekLow||s.price>s.fiftyTwoWeekLow*1.03))return false;
+    }
+    // שיא/שפל יומי (מה שיש)
+    if(h20){
+      if(h20==='nh'&&s.high&&s.price<s.high)return false;
+      if(h20==='nl'&&s.low&&s.price>s.low)return false;
+      if(h20==='nr'&&s.high&&s.price<s.high*0.995)return false;
+    }
+    // שיא כל הזמנים — שימוש ב-52W כקירוב
+    if(hath==='ath'&&(!s.fiftyTwoWeekHigh||s.price<s.fiftyTwoWeekHigh*0.98))return false;
+    if(hath==='atl'&&(!s.fiftyTwoWeekLow||s.price>s.fiftyTwoWeekLow*1.02))return false;
+    // נפח
+    if(vol&&s.volume<parseFloat(vol))return false;
+    if(volr==='above'&&s.volume<s.avgVolume)return false;
+    if(volr==='high'&&s.volume<s.avgVolume*1.5)return false;
+    if(volr==='vhigh'&&s.volume<s.avgVolume*3)return false;
+    // מחיר
+    if(pr){const[a,b]=pr.split('-');if(a!==''&&s.price<parseFloat(a))return false;if(b!==''&&s.price>parseFloat(b))return false;}
+    // בורסה
+    if(ex&&s.exchange!==ex)return false;
+    return true;
+  });
+  // ── פילטר קוד JS ──────────────────────────────────────────────────────────
+  const codeEl=document.getElementById('fd-code');
+  const code=(codeEl?codeEl.value.trim():'');
+  if(code){
+    let fn=null;
+    try{
+      // אם המשתמש כתב רק ביטוי (ללא return) — עוטף אוטומטית
+      const body=code.startsWith('return ')||code.includes('\n')?code:'return ('+code+')';
+      fn=new Function('s',body);
+    }catch(e){setTimeout(()=>toast('שגיאת קוד: '+e.message,'err'),0);}
+    if(fn){
+      result=result.filter(s=>{
+        try{return !!fn(s);}catch(e){return true;}
+      });
+    }
+  }
+  return result;
+}
+const ALL_FILTER_IDS=['fd-gap','fd-rsi','fd-volt','fd-perf','fd-perf2','fd-sma20','fd-sma50','fd-sma200','fd-open','fd-atr','fd-pat','fd-h20','fd-h50','fd-h52','fd-hath','fd-ahc','fd-ahp','fd-atr2','fd-beta','fd-macd','fd-ex','fd-pr','fd-vol','fd-volr'];
+function applyFilters(){
+  filt=applyFilterLogic(all);
+  ALL_FILTER_IDS.forEach(id=>{const el=document.getElementById(id);if(el)el.classList.toggle('active',el.value!=='');});
+  if(currentView==='list'){render(filt);stats(filt);}
+  else{gridPage=0;renderGrid();}
+}
+function rst(){
+  ALL_FILTER_IDS.forEach(id=>{const el=document.getElementById(id);if(el){el.value='';el.classList.remove('active');}});
+  const sfTxt=document.getElementById('sf-dd-txt');if(sfTxt){sfTxt.textContent='-- בחר מסנן --';}
+  const sfSel=document.getElementById('sf-dd-sel');if(sfSel)sfSel.classList.remove('has-val');
+  const codeEl=document.getElementById('fd-code');if(codeEl)codeEl.value='';
+  updateFcodePreview();
+  filt=all.slice();
+  if(currentView==='list'){render(filt);stats(filt);}
+  else{gridPage=0;renderGrid();}
+  toast('פילטרים אופסו','ok');
+}
+
+// ── View Mode ──────────────────────────────────────────────────────────────
+let currentView='list',gridPage=0;
+const GRID_PER=15;
+const miniCache={};
+let miniQ=[],miniRunning=false;
+
+function setView(mode){
+  currentView=mode;
+  document.getElementById('view-list').classList.toggle('on',mode==='list');
+  document.getElementById('view-grid').classList.toggle('on',mode==='grid');
+  const tbl=document.getElementById('tbl'),gw=document.getElementById('cgrid-wrap');
+  if(mode==='list'){tbl.style.display='';gw.style.display='none';}
+  else{tbl.style.display='none';gw.style.display='block';gridPage=0;renderGrid();}
+}
+
+function renderGrid(){
+  const gw=document.getElementById('cgrid-wrap');
+  const start=gridPage*GRID_PER,page=filt.slice(start,start+GRID_PER);
+  if(!page.length){gw.innerHTML='<div class="empty"><div class="ei">📊</div><div class="et">אין מניות</div></div>';return;}
+  const total=Math.ceil(filt.length/GRID_PER);
+  const cards=page.map(s=>{
+    const pos=s.changePercent>=0,sg=pos?'+':'';
+    return `<div class="cgcard" onclick="openChart('${s.ticker}')">
+      <div class="cgcard-hd">
+        <div><div class="cg-sym">${s.ticker}</div><div class="cg-nm">${hName(s.ticker)||s.name||''}</div></div>
+        <div style="text-align:left">
+          <div class="cg-pr" style="color:${pos?'var(--gr)':'var(--rd)'}">$${s.price.toFixed(2)}</div>
+          <div class="cg-chg" style="color:${pos?'var(--gr)':'var(--rd)'}">${sg}${s.changePercent.toFixed(2)}%</div>
+        </div>
+      </div>
+      <div class="cg-ld" id="cg-ld-${s.ticker}"><div class="spin"></div></div>
+      <canvas id="mini-${s.ticker}" style="display:none"></canvas>
+    </div>`;
+  }).join('');
+  let pgn='<div class="pgn">';
+  pgn+=`<button class="pgb" onclick="setGridPage(${gridPage-1})" ${gridPage===0?'disabled':''}>←</button>`;
+  const maxP=Math.min(total,10);
+  for(let i=0;i<maxP;i++)pgn+=`<button class="pgb${i===gridPage?' on':''}" onclick="setGridPage(${i})">${i+1}</button>`;
+  if(total>10)pgn+=`<span style="color:var(--tx3);font-size:11px;padding:0 4px">…${total}</span>`;
+  pgn+=`<button class="pgb" onclick="setGridPage(${gridPage+1})" ${gridPage>=total-1?'disabled':''}>→</button>`;
+  pgn+='</div>';
+  gw.innerHTML=`<div class="cgrid">${cards}</div>${pgn}`;
+  miniQ=page.map(s=>s.ticker);
+  runMiniQueue();
+}
+
+function setGridPage(p){
+  const total=Math.ceil(filt.length/GRID_PER);
+  if(p<0||p>=total)return;
+  gridPage=p;renderGrid();
+}
+
+async function runMiniQueue(){
+  if(miniRunning)return;
+  miniRunning=true;
+  const key=document.getElementById('td-key').value.trim();
+  while(miniQ.length){
+    const ticker=miniQ.shift();
+    const canvas=document.getElementById('mini-'+ticker);
+    if(!canvas){continue;}
+    if(miniCache[ticker]){drawMiniCandles(ticker,miniCache[ticker]);continue;}
+    if(!key)break;
+    try{
+      const r=await fetch(`https://api.twelvedata.com/time_series?symbol=${encodeURIComponent(ticker)}&interval=1day&outputsize=60&apikey=${key}`);
+      const data=await r.json();
+      if(data.values){
+        const c=[...data.values].reverse().map(v=>({o:+v.open,h:+v.high,l:+v.low,c:+v.close,v:+v.volume||0}));
+        miniCache[ticker]=c;drawMiniCandles(ticker,c);
+      }
+    }catch(e){}
+    await new Promise(r=>setTimeout(r,350));
+  }
+  miniRunning=false;
+}
+
+function drawMiniCandles(ticker,candles){
+  const canvas=document.getElementById('mini-'+ticker);
+  const ld=document.getElementById('cg-ld-'+ticker);
+  if(!canvas||!candles.length)return;
+  const dpr=window.devicePixelRatio||1;
+  const W=canvas.parentElement.clientWidth||240;
+  const H=140;
+  canvas.width=W*dpr;canvas.height=H*dpr;
+  canvas.style.width=W+'px';canvas.style.height=H+'px';
+  const ctx=canvas.getContext('2d');
+  ctx.scale(dpr,dpr);
+  const VH=14,CH=H-VH;
+  const hs=candles.map(c=>c.h),ls=candles.map(c=>c.l),vs=candles.map(c=>c.v);
+  const minP=Math.min(...ls),maxP=Math.max(...hs),maxV=Math.max(...vs,1);
+  const rng=maxP-minP||1,n=candles.length;
+  const bw=Math.max(1,Math.floor(W/n)-1);
+  const xp=i=>Math.floor(i/n*W)+bw/2;
+  const yp=v=>CH-((v-minP)/rng)*(CH-4)-2;
+  const yv=v=>H-Math.max(1,(v/maxV)*(VH-2));
+  ctx.fillStyle='#0b0e13';ctx.fillRect(0,0,W,H);
+  for(let i=0;i<n;i++){
+    const c=candles[i],up=c.c>=c.o,col=up?'#2ecc71':'#e74c3c',xi=xp(i);
+    ctx.strokeStyle=col;ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(xi,yp(c.h));ctx.lineTo(xi,yp(c.l));ctx.stroke();
+    const y1=yp(Math.max(c.o,c.c)),y2=yp(Math.min(c.o,c.c));
+    ctx.fillStyle=col;ctx.fillRect(xi-Math.floor(bw/2),y1,bw,Math.max(1,y2-y1));
+    ctx.fillStyle=col+'55';ctx.fillRect(xi-Math.floor(bw/2),yv(c.v),bw,H-yv(c.v));
+  }
+  if(ld)ld.style.display='none';
+  canvas.style.display='block';
+}
+function render(d){
+  const s=[...d].sort((a,b)=>{const va=a[sCol]??0,vb=b[sCol]??0;return(va<vb?-1:va>vb?1:0)*sDir;});
+  const mx=Math.max(...s.map(x=>x.volume),1);
+  if(!s.length){document.getElementById('tbl').innerHTML='<div class="empty"><div class="ei">🔍</div><div class="et">אין תוצאות</div></div>';return;}
+  document.getElementById('tbl').innerHTML=`<table><thead><tr>${th('ticker','סמל')}${th('price','מחיר')}${th('change','שינוי')}${th('changePercent','%')}${th('volume','נפח')}${th('high','שיא')}${th('low','שפל')}${th('fiftyTwoWeekHigh','52W')}</tr></thead><tbody>${s.map(x=>row(x,mx)).join('')}</tbody></table>`;
+}
+function th(c,l){const a=sCol===c?'sorted':'',i=sCol===c?(sDir===1?'▲':'▼'):'⇅';return `<th class="${a}" onclick="srt('${c}')"><span class="si">${i}</span>${l}</th>`;}
+function row(s,mx){
+  stockMap[s.ticker]=s;
+  const p=s.changePercent>=0,sg=p?'+':'',vp=Math.min(100,s.volume/mx*100),hv=s.volume>s.avgVolume*1.5,n5=s.fiftyTwoWeekHigh&&s.price>s.fiftyTwoWeekHigh*0.97;
+  const nm=hName(s.ticker)||s.name;
+  return `<tr class="clickable" onclick="openChart('${s.ticker}')"><td><div class="sym">${s.ticker}${n5?' <span style="color:var(--yl);font-size:9px">★</span>':''}</div><div class="nm">${nm}</div></td><td style="font-weight:600">$${s.price.toFixed(2)}</td><td style="color:${p?'var(--gr)':'var(--rd)'}">${sg}${s.change.toFixed(2)}</td><td><span class="badge ${p?'pos':'neg'}">${sg}${s.changePercent.toFixed(2)}%</span></td><td><div class="vb"><span style="color:${hv?'var(--yl)':'var(--tx2)'};font-size:11px">${fv(s.volume)}</span><div class="vbr"><div class="vbf" style="width:${vp}%"></div></div></div></td><td style="color:var(--tx2)">$${s.high.toFixed(2)}</td><td style="color:var(--tx2)">$${s.low.toFixed(2)}</td><td style="color:${n5?'var(--yl)':'var(--tx2)'}">${s.fiftyTwoWeekHigh?'$'+s.fiftyTwoWeekHigh.toFixed(2):'—'}</td></tr>`;
+}
+function srt(c){if(sCol===c)sDir*=-1;else{sCol=c;sDir=-1;}render(filt);}
+function ftbl(q){const l=q.toLowerCase();render(filt.filter(s=>s.ticker.toLowerCase().includes(l)||s.name.toLowerCase().includes(l)));}
+function stats(d){document.getElementById('s0').textContent=d.length;document.getElementById('s1').textContent=d.filter(s=>s.changePercent>0).length;document.getElementById('s2').textContent=d.filter(s=>s.changePercent<0).length;document.getElementById('s3').textContent=d.filter(s=>s.volume>s.avgVolume*1.5).length;}
+function summ(d){if(!d.length)return;const avg=(d.reduce((a,s)=>a+s.changePercent,0)/d.length).toFixed(2);const best=d.reduce((a,b)=>a.changePercent>b.changePercent?a:b);const worst=d.reduce((a,b)=>a.changePercent<b.changePercent?a:b);document.getElementById('sum').innerHTML=`<div class="sr"><span>ממוצע</span><span style="color:${avg>=0?'var(--gr)':'var(--rd)'};font-family:'IBM Plex Mono',monospace;font-weight:600">${avg>0?'+':''}${avg}%</span></div><div class="sr"><span>מוביל עלייה</span><span style="color:var(--gr);font-family:'IBM Plex Mono',monospace">${best.ticker} +${best.changePercent.toFixed(1)}%</span></div><div class="sr"><span>מוביל ירידה</span><span style="color:var(--rd);font-family:'IBM Plex Mono',monospace">${worst.ticker} ${worst.changePercent.toFixed(1)}%</span></div>`;}
+function tauto(){autoOn=!autoOn;const b=document.getElementById('ab');if(autoOn){autoT=setInterval(run,60000);b.textContent='⏱ ON';b.style.color='var(--gr)';}else{clearInterval(autoT);b.textContent='⏱ אוטו';b.style.color='';}}
+async function stest(){
+  const key=document.getElementById('td-key').value.trim();
+  if(!key){toast('הדבק API Key','err');return;}
+  const btn=document.getElementById('tbtn');btn.innerHTML='<div class="spin"></div>';btn.disabled=true;
+  try{
+    const r=await fetch(BASE+'/api/key/test',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key})});
+    const j=await r.json();
+    if(j.status==='ok'){localStorage.setItem('td-key',key);document.getElementById('td-key').classList.add('valid');setConnTD(true);toast('✓ Twelve Data מחובר! AAPL=$'+j.price,'ok');}
+    else{toast('שגיאה: '+(j.message||'Key שגוי'),'err');}
+  }catch(e){toast('שגיאה: '+e.message,'err');}
+  btn.innerHTML='💾 שמור ובדוק';btn.disabled=false;
+}
+function setConn(v,src){document.getElementById('cdot').className='cdot'+(v?' on':'');document.getElementById('clbl').textContent=v?(src==='IB'?'מחובר — IB':'מחובר — Twelve Data'):'לא מחובר';}
+function setConnIB(v){
+  const b=document.getElementById('ib-badge');
+  b.className='abadge '+(v?'ok':'no');
+  b.textContent=v?'✓ מחובר ל-Interactive Brokers':'✗ לא מחובר ל-IB';
+  document.getElementById('ib-btn').disabled=v;
+  document.getElementById('ib-btn').style.opacity=v?'0.35':'1';
+  document.getElementById('ib-run').disabled=!v;
+  document.getElementById('ib-run').style.opacity=v?'1':'0.35';
+  document.getElementById('ib-disc').disabled=!v;
+  document.getElementById('ib-disc').style.opacity=v?'1':'0.35';
+  if(v)setConn(true,'IB');
+}
+function setConnTD(v){
+  const b=document.getElementById('td-badge');
+  b.className='abadge '+(v?'ok':'no');
+  b.textContent=v?'✓ מחובר ל-Twelve Data':'✗ לא מחובר ל-Twelve Data';
+  document.getElementById('tbtn').disabled=v;
+  document.getElementById('tbtn').style.opacity=v?'0.35':'1';
+  document.getElementById('td-disc').disabled=!v;
+  document.getElementById('td-disc').style.opacity=v?'1':'0.35';
+  if(v)setConn(true,'TD');
+}
+async function disconnIB(){
+  try{await fetch(BASE+'/api/disconnect_ib',{method:'POST'});}catch(e){}
+  setConnIB(false);
+  setConn(false,'');
+  toast('IB נותק','ok');
+}
+function clr(){
+  document.getElementById('td-key').value='';
+  document.getElementById('td-key').classList.remove('valid');
+  localStorage.removeItem('td-key');
+  setConnTD(false);
+  setConn(false,'');
+  fetch(BASE+'/api/key',{method:'POST',headers:{'Content-Type':'application/json'},body:'{"key":""}'}).catch(()=>{});
+  toast('Twelve Data נותק','ok');
+}
+function rcode(){try{cfn=new Function(document.getElementById('jsc').value+'\nreturn screenStocks;')();if(all.length){filt=filter(cfn(all));render(filt);stats(filt);}toast('קוד פעיל ✓','ok');}catch(e){toast('שגיאה','err');}}
+function xcode(){cfn=null;if(all.length){filt=filter(all);render(filt);}toast('אופס','ok');}
+function svcode(){localStorage.setItem('jsc',document.getElementById('jsc').value);toast('נשמר','ok');}
+function xcsv(){if(!filt.length){toast('אין נתונים','err');return;}const c=['ticker','name','exchange','price','change','changePercent','volume','high','low','fiftyTwoWeekHigh'],h=['Ticker','Name','Exchange','Price','Change','Change%','Volume','High','Low','52W'];const rows=[h.join(','),...filt.map(s=>c.map(x=>s[x]??'').join(','))];const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\ufeff'+rows.join('\n')],{type:'text/csv;charset=utf-8'}));a.download=`screener-${new Date().toISOString().slice(0,10)}.csv`;a.click();toast('CSV יוצא','ok');}
+let tt;function toast(m,t='ok'){const e=document.getElementById('toast');document.getElementById('tm').textContent=m;document.getElementById('ti').textContent=t==='ok'?'✓':'✗';e.className='toast show '+t;clearTimeout(tt);tt=setTimeout(()=>e.classList.remove('show'),3500);}
+function fv(n){if(n>=1e9)return(n/1e9).toFixed(1)+'B';if(n>=1e6)return(n/1e6).toFixed(1)+'M';if(n>=1e3)return(n/1e3).toFixed(0)+'K';return String(n);}
+document.addEventListener('keydown',e=>{if(e.key==='F5'){e.preventDefault();run();}if(e.ctrlKey&&e.key==='e'){e.preventDefault();xcsv();}if(e.key==='Escape'){document.getElementById('srch').value='';ftbl('');}});
+// ── Save / Load Filters ────────────────────────────────────────────────────
+function openSaveFilterDlg(){
+  const modal=document.getElementById('sf-modal');
+  modal.classList.add('open');
+  const inp=document.getElementById('sf-name');
+  inp.value='';
+  setTimeout(()=>inp.focus(),50);
+}
+function closeSaveFilterDlg(){document.getElementById('sf-modal').classList.remove('open');}
+/* sf-modal click-outside handled via onclick on the element (defined after this script) */
+
+function saveFilterConfirm(){
+  const name=document.getElementById('sf-name').value.trim();
+  if(!name){toast('הכנס שם למסנן','err');return;}
+  const filters={};
+  ALL_FILTER_IDS.forEach(id=>{const el=document.getElementById(id);if(el&&el.value)filters[id]=el.value;});
+  // שמור גם את קוד המסנן
+  const codeEl=document.getElementById('fd-code');
+  if(codeEl&&codeEl.value.trim())filters['__code__']=codeEl.value;
+  const saved=JSON.parse(localStorage.getItem('saved-filters')||'[]');
+  const idx=saved.findIndex(f=>f.name===name);
+  if(idx>=0)saved[idx]={name,filters};else saved.push({name,filters});
+  localStorage.setItem('saved-filters',JSON.stringify(saved));
+  updateSavedFiltersList(name);
+  closeSaveFilterDlg();
+  toast('מסנן "'+name+'" נשמר ✓','ok');
+}
+
+function loadSavedFilter(name){
+  if(!name)return;
+  const saved=JSON.parse(localStorage.getItem('saved-filters')||'[]');
+  const f=saved.find(x=>x.name===name);
+  if(!f){toast('מסנן לא נמצא','err');return;}
+  ALL_FILTER_IDS.forEach(id=>{const el=document.getElementById(id);if(el)el.value=f.filters[id]||'';});
+  // שחזר גם את קוד המסנן
+  const codeEl=document.getElementById('fd-code');
+  if(codeEl)codeEl.value=f.filters['__code__']||'';
+  updateFcodePreview();
+  applyFilters();
+  toast('מסנן "'+name+'" נטען ✓','ok');
+}
+
+// ── JS Code Filter Dropdown ────────────────────────────────────────────────
+function toggleFcodeDD(){
+  const dd=document.getElementById('fcode-dd');
+  const isOpen=dd.classList.contains('open');
+  if(isOpen){dd.classList.remove('open');}
+  else{dd.classList.add('open');setTimeout(()=>{const ta=document.getElementById('fd-code');if(ta)ta.focus();},60);}
+}
+function closeFcodeDD(){
+  const dd=document.getElementById('fcode-dd');
+  if(dd)dd.classList.remove('open');
+}
+function updateFcodePreview(){
+  const code=(document.getElementById('fd-code')||{}).value||'';
+  const trimmed=code.trim();
+  const preview=document.getElementById('fcode-preview');
+  const trigger=document.getElementById('fcode-trigger');
+  if(!preview||!trigger)return;
+  if(trimmed){
+    const firstLine=trimmed.split('\n')[0];
+    preview.textContent=firstLine.length>50?firstLine.slice(0,48)+'…':firstLine;
+    preview.classList.add('has-code');
+    trigger.classList.add('active');
+  }else{
+    preview.textContent='הקלד קוד מסנן...';
+    preview.classList.remove('has-code');
+    trigger.classList.remove('active');
+  }
+}
+function clearFcode(){
+  const ta=document.getElementById('fd-code');
+  if(ta)ta.value='';
+  updateFcodePreview();
+  applyFilters();
+}
+
+// ── Custom Saved-Filter Dropdown ──────────────────────────────────────────
+let sfDDOpen=false, sfDelPending='';
+
+function toggleSFDD(){
+  sfDDOpen=!sfDDOpen;
+  document.getElementById('sf-dd-list').classList.toggle('open',sfDDOpen);
+  const arr=document.getElementById('sf-dd-arrow');
+  if(arr)arr.style.transform=sfDDOpen?'rotate(90deg)':'';
+}
+
+function closeSFDD(){
+  sfDDOpen=false;
+  const list=document.getElementById('sf-dd-list');
+  if(list)list.classList.remove('open');
+  const arr=document.getElementById('sf-dd-arrow');
+  if(arr)arr.style.transform='';
+}
+
+function updateSavedFiltersList(selectName){
+  const saved=JSON.parse(localStorage.getItem('saved-filters')||'[]');
+  const list=document.getElementById('sf-dd-list');
+  if(!list)return;
+  if(!saved.length){
+    list.innerHTML='<div class="sf-dd-empty">אין מסננים שמורים</div>';
+  } else {
+    list.innerHTML=saved.map(f=>
+      `<div class="sf-dd-item" onclick="pickSF('${f.name.replace(/'/g,"\\'")}')">
+        <span class="sf-dd-name">${f.name}</span>
+        <button class="sf-dd-x" title="מחק" onclick="event.stopPropagation();askDeleteFilter('${f.name.replace(/'/g,"\\'")}')">×</button>
+      </div>`
+    ).join('');
+  }
+  if(selectName){
+    const txt=document.getElementById('sf-dd-txt');
+    if(txt)txt.textContent=selectName;
+    const sel=document.getElementById('sf-dd-sel');
+    if(sel)sel.classList.add('has-val');
+  }
+}
+
+function pickSF(name){
+  const txt=document.getElementById('sf-dd-txt');
+  if(txt)txt.textContent=name;
+  const sel=document.getElementById('sf-dd-sel');
+  if(sel)sel.classList.add('has-val');
+  closeSFDD();
+  loadSavedFilter(name);
+}
+
+function askDeleteFilter(name){
+  sfDelPending=name;
+  const dlg=document.getElementById('sf-del-dlg');
+  const msg=document.getElementById('sf-del-msg');
+  if(!dlg)return;
+  if(msg)msg.textContent='למחוק את המסנן "'+name+'"?';
+  // מיקום ליד הכפתור
+  const dd=document.getElementById('sf-dd');
+  if(dd){
+    const r=dd.getBoundingClientRect();
+    dlg.style.top=(r.bottom+6)+'px';
+    dlg.style.left=r.left+'px';
+    dlg.style.right='auto';
+  }
+  dlg.classList.add('open');
+}
+
+function closeSFDelDlg(){
+  const dlg=document.getElementById('sf-del-dlg');
+  if(dlg)dlg.classList.remove('open');
+  sfDelPending='';
+}
+
+function doDeleteFilter(){
+  if(!sfDelPending)return;
+  const name=sfDelPending;
+  const saved=JSON.parse(localStorage.getItem('saved-filters')||'[]').filter(f=>f.name!==name);
+  localStorage.setItem('saved-filters',JSON.stringify(saved));
+  const txt=document.getElementById('sf-dd-txt');
+  if(txt&&txt.textContent===name){
+    txt.textContent='-- בחר מסנן --';
+    const sel=document.getElementById('sf-dd-sel');
+    if(sel)sel.classList.remove('has-val');
+  }
+  closeSFDelDlg();
+  closeSFDD();
+  updateSavedFiltersList();
+  toast('מסנן "'+name+'" נמחק','ok');
+}
+
+function deleteSavedFilter(){} // נשמר לתאימות אחורה
+
+// ── טעינת כל הסימבולים מ-Twelve Data ──────────────────────────────────────
+async function fetchAllSymbols(){
+  const key=document.getElementById('td-key').value.trim();
+  if(!key){toast('נדרש Twelve Data API Key','err');return;}
+  const btn=document.getElementById('fetch-syms-btn');
+  const st=document.getElementById('fetch-syms-status');
+  btn.innerHTML='<div class="spin"></div> טוען...';btn.disabled=true;
+  st.textContent='מוריד רשימת סמלים (עשוי לקחת 15-30 שניות)...';
+  try{
+    const r=await fetch(BASE+'/api/fetch_symbols',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key})});
+    const j=await r.json();
+    if(j.error)throw new Error(j.error);
+    st.textContent=`✓ ${j.count} סמלים נטענו ונשמרו`;
+    st.style.color='var(--gr)';
+    // רענון ה-autocomplete
+    const r2=await fetch(BASE+'/api/symbols');
+    acSymbols=await r2.json();
+    acFuse=new Fuse(acSymbols,{keys:[{name:'ticker',weight:3},{name:'name',weight:1}],threshold:0.35,includeScore:true,minMatchCharLength:2,ignoreLocation:true,shouldSort:true});
+    toast('✓ '+j.count+' סמלים נטענו','ok');
+  }catch(e){st.textContent='שגיאה: '+e.message;st.style.color='var(--rd)';toast('שגיאה: '+e.message,'err');}
+  btn.innerHTML='📥 טען כל הסימבולים';btn.disabled=false;
+}
+
+setConnIB(false);setConnTD(false);
+const sk=localStorage.getItem('td-key');
+if(sk){
+  document.getElementById('td-key').value=sk;
+  document.getElementById('td-key').classList.add('valid');
+  setConnTD(true);
+  fetch(BASE+'/api/key',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:sk})}).catch(()=>{});
+}
+const js=localStorage.getItem('jsc');if(js)document.getElementById('jsc').value=js;
+fetch(BASE+'/api/ib_status').then(r=>r.json()).then(j=>{if(j.connected){setConnIB(true);}}).catch(()=>{});
+updateSavedFiltersList();
+
+// ── Chart Config ─────────────────────────────────────────────────────────────
+const CH_IV_LABELS={'1min':'1מ','5min':'5מ','15min':'15מ','30min':'30מ','1h':'1ש','2h':'2ש','4h':'4ש','1day':'יומי','1week':'שבועי','1month':'ירחון'};
+const CH_IV_RANGES={
+  '1min':  [{l:'יום',o:390},{l:'3 ימים',o:1170},{l:'שבוע',o:1950}],
+  '5min':  [{l:'יום',o:78},{l:'שבוע',o:390},{l:'2 שב\'',o:780}],
+  '15min': [{l:'שבוע',o:130},{l:'2 שב\'',o:260},{l:'חודש',o:520}],
+  '30min': [{l:'2 שב\'',o:130},{l:'חודש',o:260},{l:'2 חודש',o:480}],
+  '1h':    [{l:'חודש',o:168},{l:'3 חודש',o:504},{l:'6 חודש',o:1008}],
+  '2h':    [{l:'חודש',o:90},{l:'3 חודש',o:180},{l:'שנה',o:360}],
+  '4h':    [{l:'3 חודש',o:90},{l:'6 חודש',o:182},{l:'שנה',o:365}],
+  '1day':  [{l:'חודש',o:30},{l:'3 חודש',o:90},{l:'6 חודש',o:180},{l:'שנה',o:365},{l:'2 שנה',o:730}],
+  '1week': [{l:'שנה',o:52},{l:'2 שנה',o:104},{l:'5 שנה',o:260}],
+  '1month':[{l:'3 שנה',o:36},{l:'5 שנה',o:60},{l:'10 שנה',o:120}],
+};
+const CH_IV_DEF_IDX={'1min':0,'5min':0,'15min':1,'30min':1,'1h':1,'2h':1,'4h':2,'1day':3,'1week':1,'1month':1};
+
+function toggleChCfg(){
+  const p=document.getElementById('ch-cfg-panel');
+  const isOpen=p.classList.contains('open');
+  if(isOpen){p.classList.remove('open');document.getElementById('ch-cfg-btn').classList.remove('active');}
+  else{p.classList.add('open');document.getElementById('ch-cfg-btn').classList.add('active');renderChCfgBtns();}
+}
+function closeChCfg(){
+  const p=document.getElementById('ch-cfg-panel');
+  if(p)p.classList.remove('open');
+  const b=document.getElementById('ch-cfg-btn');
+  if(b)b.classList.remove('active');
+}
+function renderChCfgBtns(){
+  const ivBtns=document.getElementById('ch-iv-btns');
+  if(ivBtns)ivBtns.innerHTML=Object.entries(CH_IV_LABELS).map(([iv,lbl])=>
+    `<button class="ch-cfg-b${iv===chartIv?' on':''}" onclick="chSetIv('${iv}')">${lbl}</button>`
+  ).join('');
+  renderChRangeBtns();
+}
+function renderChRangeBtns(){
+  const rb=document.getElementById('ch-range-btns');
+  if(!rb)return;
+  const ranges=CH_IV_RANGES[chartIv]||[];
+  rb.innerHTML=ranges.map(r=>
+    `<button class="ch-cfg-b${r.o===chartOut?' on':''}" onclick="chSetRange(${r.o},'${r.l}')">${r.l}</button>`
+  ).join('');
+}
+function chSetIv(iv){
+  chartIv=iv;
+  const def=(CH_IV_RANGES[iv]||[])[CH_IV_DEF_IDX[iv]||0]||{o:365,l:''};
+  chartOut=def.o;
+  renderChCfgBtns();
+  updateChCfgLbl();
+  if(chartTicker)loadChart(chartTicker,iv,chartOut);
+}
+function chSetRange(out,lbl){
+  chartOut=out;
+  renderChRangeBtns();
+  updateChCfgLbl();
+  closeChCfg();
+  if(chartTicker)loadChart(chartTicker,chartIv,out);
+}
+function updateChCfgLbl(){
+  const el=document.getElementById('ch-cfg-lbl');
+  if(!el)return;
+  const ivLabel=CH_IV_LABELS[chartIv]||chartIv;
+  const rLabel=(CH_IV_RANGES[chartIv]||[]).find(r=>r.o===chartOut);
+  el.textContent=ivLabel+(rLabel?' / '+rLabel.l:'');
+}
+
+// ── Chart ──────────────────────────────────────────────────────────────────
+const stockMap={};
+let chartInst=null,chartSeries=null,chartTicker='',chartIv='1day',chartOut=365;
+let vwapOn=false,vwapSeries=null,chartCandleData=[],chartVolData=[];
+let ppOn=false,ppPriceLines=[];
+
+function openChart(ticker){
+  const s=stockMap[ticker]||filt.find(x=>x.ticker===ticker)||all.find(x=>x.ticker===ticker);
+  if(!s)return;
+  stockMap[ticker]=s;
+  chartTicker=ticker;
+  document.getElementById('ch-sym').textContent=ticker;
+  document.getElementById('ch-nm').textContent=hName(ticker)||s.name||'';
+  const pos=s.changePercent>=0;
+  document.getElementById('ch-pr').textContent='$'+(s.price||0).toFixed(2);
+  document.getElementById('ch-pr').style.color=pos?'var(--gr)':'var(--rd)';
+  const chgEl=document.getElementById('ch-chg');
+  chgEl.textContent=(pos?'+':'')+s.changePercent.toFixed(2)+'%';
+  chgEl.style.background=pos?'rgba(46,204,113,.12)':'rgba(231,76,60,.12)';
+  chgEl.style.color=pos?'var(--gr)':'var(--rd)';
+  document.getElementById('page-chart').style.display='flex';
+  updateChCfgLbl();
+  loadChart(ticker,chartIv,chartOut);
+}
+
+function closeChart(){
+  document.getElementById('page-chart').style.display='none';
+  ppPriceLines=[];
+  if(chartInst){chartInst.remove();chartInst=null;chartSeries=null;vwapSeries=null;}
+  window.onresize=null;
+}
+
+function setIvSel(val){
+  const[iv,outStr]=val.split('|');
+  chartIv=iv;chartOut=parseInt(outStr);
+  if(chartTicker)loadChart(chartTicker,iv,parseInt(outStr));
+}
+
+function toggleVWAP(){
+  vwapOn=!vwapOn;
+  const btn=document.getElementById('vwap-btn');
+  if(btn)btn.classList.toggle('on',vwapOn);
+  if(vwapOn){drawVWAP();}
+  else if(vwapSeries&&chartInst){try{chartInst.removeSeries(vwapSeries);}catch(e){}vwapSeries=null;}
+}
+
+function calcVWAP(candles,vols){
+  let cv=0,cv2=0;
+  return candles.map((c,i)=>{
+    const tp=(c.high+c.low+c.close)/3;
+    const v=vols[i]?vols[i].value:0;
+    cv+=tp*v;cv2+=v;
+    return{time:c.time,value:cv2>0?(cv/cv2):tp};
+  });
+}
+
+function drawVWAP(){
+  if(!chartInst||!chartCandleData.length)return;
+  if(vwapSeries){try{chartInst.removeSeries(vwapSeries);}catch(e){}vwapSeries=null;}
+  vwapSeries=chartInst.addLineSeries({
+    color:'#f39c12',lineWidth:2,priceScaleId:'right',
+    lastValueVisible:true,priceLineVisible:false,
+    title:'VWAP',
+  });
+  vwapSeries.setData(calcVWAP(chartCandleData,chartVolData));
+}
+
+// ── Pivot Points (Standard / Classic — Shlomo Kupfer style) ─────────────────
+function togglePP(){
+  ppOn=!ppOn;
+  const btn=document.getElementById('pp-btn');
+  if(btn)btn.classList.toggle('on',ppOn);
+  if(ppOn){drawPP();}
+  else{
+    ppPriceLines.forEach(l=>{try{chartSeries.removePriceLine(l);}catch(e){}});
+    ppPriceLines=[];
+  }
+}
+
+function calcPivots(candles){
+  if(!candles||candles.length<2)return null;
+  // קיבוץ לפי יום מסחר — מוצאים H/L/C של היום הקודם
+  const byDate={};
+  candles.forEach(c=>{
+    const d=typeof c.time==='number'
+      ?new Date(c.time*1000).toISOString().slice(0,10)
+      :String(c.time).slice(0,10);
+    if(!byDate[d])byDate[d]={h:c.high,l:c.low,c:c.close,t:c.time};
+    else{byDate[d].h=Math.max(byDate[d].h,c.high);byDate[d].l=Math.min(byDate[d].l,c.low);byDate[d].c=c.close;}
+  });
+  const dates=Object.keys(byDate).sort();
+  if(dates.length<2)return null;
+  const prev=byDate[dates[dates.length-2]];
+  const H=prev.h,L=prev.l,C=prev.c;
+  const PP=(H+L+C)/3;
+  return {
+    PP,
+    R1:2*PP-L,  R2:PP+(H-L),  R3:H+2*(PP-L),
+    S1:2*PP-H,  S2:PP-(H-L),  S3:L-2*(H-PP),
+    prevDate:dates[dates.length-2]
+  };
+}
+
+function drawPP(){
+  if(!chartInst||!chartSeries||!chartCandleData.length)return;
+  ppPriceLines.forEach(l=>{try{chartSeries.removePriceLine(l);}catch(e){}});
+  ppPriceLines=[];
+  const pv=calcPivots(chartCandleData);
+  if(!pv)return;
+  // רמות: R3,R2,R1 = אדום | PP = זהב | S1,S2,S3 = ירוק
+  const lvls=[
+    {k:'R3',color:'#ff4444',lbl:'R3'},
+    {k:'R2',color:'#ff6666',lbl:'R2'},
+    {k:'R1',color:'#ff9999',lbl:'R1'},
+    {k:'PP',color:'#FFD700',lbl:'PP'},
+    {k:'S1',color:'#88ee88',lbl:'S1'},
+    {k:'S2',color:'#44cc44',lbl:'S2'},
+    {k:'S3',color:'#22aa22',lbl:'S3'},
+  ];
+  lvls.forEach(({k,color,lbl})=>{
+    const price=pv[k];
+    if(!price||isNaN(price))return;
+    const line=chartSeries.createPriceLine({
+      price,color,lineWidth:1,
+      lineStyle:LightweightCharts.LineStyle.Dashed,
+      axisLabelVisible:true,title:lbl,
+    });
+    ppPriceLines.push(line);
+  });
+}
+
+async function loadChart(ticker,iv,out){
+  const ld=document.getElementById('ch-load'),el=document.getElementById('ch-el');
+  ld.innerHTML='<div class="spin"></div> טוען נתונים...';ld.style.display='flex';el.style.display='none';
+  if(chartInst){chartInst.remove();chartInst=null;chartSeries=null;vwapSeries=null;}
+  const key=document.getElementById('td-key').value.trim();
+  if(!key){ld.innerHTML='<span style="color:var(--rd)">נדרש מפתח Twelve Data</span>';return;}
+  try{
+    const r=await fetch(`https://api.twelvedata.com/time_series?symbol=${encodeURIComponent(ticker)}&interval=${iv}&outputsize=${out}&apikey=${key}`);
+    const data=await r.json();
+    if(data.status==='error')throw new Error(data.message);
+    const intra=iv.includes('min')||iv==='1h'||iv==='2h'||iv==='4h';
+    const raw=[...data.values].reverse();
+    const candles=raw.map(v=>({
+      time:intra?Math.floor(new Date(v.datetime.replace(' ','T')).getTime()/1000):v.datetime.split(' ')[0],
+      open:parseFloat(v.open),high:parseFloat(v.high),low:parseFloat(v.low),close:parseFloat(v.close)
+    }));
+    const vols=raw.map((v,i)=>({
+      time:candles[i].time,
+      value:parseFloat(v.volume)||0,
+      color:parseFloat(v.close)>=parseFloat(v.open)?'rgba(46,204,113,.4)':'rgba(231,76,60,.4)'
+    }));
+    chartCandleData=candles;chartVolData=vols;
+    ld.style.display='none';el.style.display='block';
+    // שני RAF מבטיחים שה-flex layout הושלם לפני קריאת גדלי האלמנט
+    await new Promise(res=>requestAnimationFrame(()=>requestAnimationFrame(res)));
+    const W=el.clientWidth||window.innerWidth;
+    const H=el.clientHeight||Math.max(400,window.innerHeight-46-58);
+    chartInst=LightweightCharts.createChart(el,{
+      width:W,height:H,
+      layout:{background:{color:'#0b0e13'},textColor:'#7a8499'},
+      grid:{vertLines:{color:'#161d2a'},horzLines:{color:'#161d2a'}},
+      rightPriceScale:{borderColor:'#252d3d'},
+      timeScale:{borderColor:'#252d3d',timeVisible:intra,secondsVisible:false},
+      crosshair:{mode:LightweightCharts.CrosshairMode.Normal},
+    });
+    chartSeries=chartInst.addCandlestickSeries({
+      upColor:'#2ecc71',downColor:'#e74c3c',
+      borderUpColor:'#2ecc71',borderDownColor:'#e74c3c',
+      wickUpColor:'#2ecc71',wickDownColor:'#e74c3c',
+    });
+    chartSeries.setData(candles);
+    const vs=chartInst.addHistogramSeries({priceFormat:{type:'volume'},priceScaleId:'vol'});
+    vs.priceScale().applyOptions({scaleMargins:{top:0.85,bottom:0}});
+    vs.setData(vols);
+    if(vwapOn)drawVWAP();
+    if(ppOn)drawPP();
+    chartInst.timeScale().fitContent();
+    window.onresize=()=>{if(chartInst)chartInst.applyOptions({width:el.clientWidth||window.innerWidth,height:el.clientHeight||window.innerHeight-104});};
+  }catch(e){
+    ld.innerHTML=`<span style="color:var(--rd)">שגיאה: ${e.message}</span>`;
+    ld.style.display='flex';el.style.display='none';
+  }
+}
+</script>
+
+<div id="page-chart" class="chart-pg" style="display:none">
+  <div class="chart-hd">
+    <button class="ch-back" onclick="closeChart()">← חזרה</button>
+    <span class="ch-sym" id="ch-sym">—</span>
+    <span class="ch-nm" id="ch-nm"></span>
+    <span class="ch-pr" id="ch-pr"></span>
+    <span class="ch-chg" id="ch-chg"></span>
+    <div style="margin-right:auto;display:flex;align-items:center;gap:10px">
+      <div class="ch-cfg-dd" id="ch-cfg-dd">
+        <button class="ch-cfg-btn" id="ch-cfg-btn" onclick="toggleChCfg()">
+          <span id="ch-cfg-lbl">יומי / שנה</span>
+          <span style="font-size:10px;color:var(--tx3)">▾</span>
+        </button>
+        <div class="ch-cfg-panel" id="ch-cfg-panel">
+          <div class="ch-cfg-sec">
+            <div class="ch-cfg-sec-lbl">מרווח נר</div>
+            <div class="ch-cfg-btns" id="ch-iv-btns"></div>
+          </div>
+          <div class="ch-cfg-sec">
+            <div class="ch-cfg-sec-lbl">טווח זמן</div>
+            <div class="ch-cfg-btns" id="ch-range-btns"></div>
+          </div>
+        </div>
+      </div>
+      <div class="ch-inds">
+        <button class="ch-ind" id="vwap-btn" onclick="toggleVWAP()">VWAP</button>
+        <button class="ch-ind" id="pp-btn" onclick="togglePP()">PP</button>
+      </div>
+    </div>
+  </div>
+  <div id="ch-load" class="ch-load"><div class="spin"></div> טוען...</div>
+  <div id="ch-el" style="flex:1;display:none"></div>
+</div>
+
+<!-- ── Delete Filter Confirm ── -->
+<div class="sf-del-dlg" id="sf-del-dlg">
+  <p class="sf-del-dlg-msg" id="sf-del-msg">למחוק את המסנן?</p>
+  <div class="sf-del-dlg-btns">
+    <button class="sb2" onclick="closeSFDelDlg()">ביטול</button>
+    <button class="rb" onclick="doDeleteFilter()" style="background:var(--rd)">מחק</button>
+  </div>
+</div>
+<!-- ── Save Filter Modal ── -->
+<div class="sfmod" id="sf-modal" onclick="if(event.target===this)closeSaveFilterDlg()">
+  <div class="sfbox">
+    <h3>💾 שמור מסנן</h3>
+    <input type="text" id="sf-name" placeholder="שם המסנן..." autocomplete="off"
+      onkeydown="if(event.key==='Enter')saveFilterConfirm();if(event.key==='Escape')closeSaveFilterDlg()">
+    <div class="sfbox-btns">
+      <button class="sb2" onclick="closeSaveFilterDlg()">ביטול</button>
+      <button class="rb" onclick="saveFilterConfirm()">שמור</button>
+    </div>
+  </div>
+</div>
+</body>
+</html>
