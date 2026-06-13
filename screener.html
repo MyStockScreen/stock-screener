@@ -97,6 +97,8 @@ tr:hover td{background:var(--s2)}
 .ac-name{font-size:11px;color:var(--tx2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ac-xch{font-size:9px;color:var(--tx3);background:var(--bd);padding:2px 5px;border-radius:3px;white-space:nowrap}
 .ac-hint{padding:10px 14px;color:var(--tx3);font-size:11px;text-align:center}
+.ac-sep{padding:4px 12px;font-size:10px;color:var(--tx3);background:var(--s3);border-top:1px solid var(--bd);border-bottom:1px solid var(--bd);letter-spacing:.5px}
+.ac-online .ac-ticker{color:#f5a623}
 .api-wrap{max-width:560px}
 .ac{background:var(--s2);border:1px solid var(--bd);border-radius:8px;overflow:hidden;margin-bottom:12px}
 .ach{background:var(--s3);border-bottom:1px solid var(--bd);padding:10px 14px;font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--tx2)}
@@ -595,8 +597,22 @@ const FALLBACK_SYMS=['AAPL','MSFT','NVDA','GOOGL','AMZN','META','TSLA','AMD','IN
   }catch(e){console.warn('hebrew_names.json not loaded:',e);}
 })();
 
+// ── חיפוש לפי שם עברי ────────────────────────────────────────────────────────
+function hebrewWordSearch(q){
+  const res=[];
+  const allHeb={...HEBREW_NAMES,...HEBREW_NAMES_EXTRA};
+  for(const [ticker,hebName] of Object.entries(allHeb)){
+    if(hebName&&hebName.includes(q)) res.push({ticker,name:hebName,exchange:''});
+  }
+  return res.slice(0,10);
+}
+
 function acSearch(q){
   if(!q||q.length<2)return[];
+
+  // חיפוש בעברית (מילים ולא מקלדת)
+  if(/[א-ת]/.test(q)) return hebrewWordSearch(q);
+
   const qu=q.toUpperCase().trim();
   const t0=performance.now();
 
@@ -630,20 +646,34 @@ function acSearch(q){
   return results;
 }
 
-function acRender(results, q){
+function acRender(results, q, onlineExtra){
   const drop=document.getElementById('ac-drop');
   acSel=-1;
-  if(!results.length){
-    drop.innerHTML=`<div class="ac-hint">אין תוצאות עבור "${q}"</div>`;
+  let html='';
+  if(results.length){
+    html+=results.map(s=>
+      `<div class="ac-item" data-t="${s.ticker}" onclick="acPick('${s.ticker}')">
+        <span class="ac-ticker">${s.ticker}</span>
+        <span class="ac-name">${hName(s.ticker)||s.name}</span>
+        <span class="ac-xch">${s.exchange}</span>
+      </div>`
+    ).join('');
+  }
+  if(onlineExtra&&onlineExtra.length){
+    html+=`<div class="ac-sep">🌐 תוצאות מהאינטרנט</div>`;
+    html+=onlineExtra.map(s=>
+      `<div class="ac-item ac-online" data-t="${s.ticker}" onclick="acPick('${s.ticker}')">
+        <span class="ac-ticker">${s.ticker}</span>
+        <span class="ac-name">${s.name}</span>
+        <span class="ac-xch">${s.exchange}</span>
+      </div>`
+    ).join('');
+  }
+  if(!html){
+    drop.innerHTML=`<div class="ac-hint">אין תוצאות עבור "${q}" — ממתין לחיפוש אינטרנטי...</div>`;
     drop.classList.add('open'); return;
   }
-  drop.innerHTML=results.map(s=>
-    `<div class="ac-item" data-t="${s.ticker}" onclick="acPick('${s.ticker}')">
-      <span class="ac-ticker">${s.ticker}</span>
-      <span class="ac-name">${hName(s.ticker)||s.name}</span>
-      <span class="ac-xch">${s.exchange}</span>
-    </div>`
-  ).join('');
+  drop.innerHTML=html;
   drop.classList.add('open');
 }
 
@@ -677,11 +707,40 @@ function acKey(e){
 }
 
 function debounce(fn,ms){let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),ms);};}
+
+// ── חיפוש אינטרנטי דרך Twelve Data ──────────────────────────────────────────
+let _acOnlineTimer=null;
+function acSearchOnline(q){
+  clearTimeout(_acOnlineTimer);
+  if(/[א-ת]/.test(q))return; // עברית — מאגר מקומי מספיק
+  if(q.length<2)return;
+  _acOnlineTimer=setTimeout(async()=>{
+    const key=getTDKey();if(!key)return;
+    try{
+      const r=await fetch(`https://api.twelvedata.com/symbol_search?symbol=${encodeURIComponent(q)}&apikey=${key}`);
+      const data=await r.json();
+      if(!data.data||!data.data.length)return;
+      const online=data.data.slice(0,8).map(s=>({ticker:s.symbol,name:s.instrument_name,exchange:s.exchange,online:true}));
+      // ודא שהמשתמש עדיין מחפש את אותו דבר
+      const cur=document.getElementById('ac-in').value.trim();
+      if(cur.toUpperCase()!==q.toUpperCase())return;
+      const localRes=acSearch(q);
+      const seen=new Set(localRes.map(s=>s.ticker));
+      const extra=online.filter(s=>!seen.has(s.ticker));
+      if(!extra.length&&!localRes.length)return;
+      acRender(localRes,q,extra);
+    }catch(e){}
+  },500);
+}
+
 const acInputD=debounce(q=>{
   if(q.length<2){document.getElementById('ac-drop').classList.remove('open');return;}
   acRender(acSearch(q),q);
+  acSearchOnline(q);
 },150);
 function acInput(v){
+  // עברית — אל תמיר מקלדת, חפש לפי שם
+  if(/[א-ת]/.test(v)){acInputD(v);return;}
   const fixed=fixHebrew(v);
   if(fixed!==v){document.getElementById('ac-in').value=fixed;v=fixed;}
   acInputD(v);
