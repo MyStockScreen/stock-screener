@@ -420,8 +420,34 @@ tr.clickable{cursor:pointer}
 </main>
 </div>
 <script>
-const BASE=(location.hostname==='localhost'||location.hostname==='127.0.0.1')?'http://localhost:5000':location.origin;
 let all=[],filt=[],cfn=null,sCol='changePercent',sDir=-1,autoOn=false,autoT=null;
+function getTDKey(){return localStorage.getItem('td-key')||document.getElementById('td-key').value.trim();}
+function isMarketOpen(){const n=new Date(),d=n.getUTCDay(),h=n.getUTCHours(),m=n.getUTCMinutes();if(d===0||d===6)return false;const t=h*60+m;return t>=810&&t<=1200;}
+async function tdQuoteBatch(symbols,key,batchSize=100){
+  const results=[];
+  for(let i=0;i<symbols.length;i+=batchSize){
+    const batch=symbols.slice(i,i+batchSize);
+    try{
+      const r=await fetch(`https://api.twelvedata.com/quote?symbol=${batch.join(',')}&apikey=${key}`);
+      let data=await r.json();
+      if(data.symbol)data={[data.symbol]:data};
+      for(const[sym,q]of Object.entries(data)){
+        if(!q||q.status==='error')continue;
+        const raw=q.close||q.last||q.previous_close;if(!raw)continue;
+        const price=parseFloat(raw),prev=parseFloat(q.previous_close||raw);
+        const chg=price-prev,chgp=prev?(chg/prev*100):0;
+        results.push({ticker:q.symbol||sym,name:q.name||sym,exchange:q.exchange||'',
+          price:Math.round(price*100)/100,change:Math.round(chg*100)/100,changePercent:Math.round(chgp*100)/100,
+          open:parseFloat(q.open||0),high:parseFloat(q.high||0),low:parseFloat(q.low||0),
+          volume:parseInt(q.volume||0),avgVolume:parseInt(q.average_volume||0),
+          fiftyTwoWeekHigh:parseFloat((q.fifty_two_week||{}).high||0),
+          fiftyTwoWeekLow:parseFloat((q.fifty_two_week||{}).low||0),
+          marketOpen:isMarketOpen()});
+      }
+    }catch(e){console.warn('TD batch error:',e);}
+  }
+  return results;
+}
 
 // ── שמות חברות בעברית ──────────────────────────────────────────────────────
 const HEBREW_NAMES={
@@ -523,54 +549,24 @@ function pg(n,el){
   el.classList.add('on');
 }
 
-async function connIB(){
-  const btn=document.getElementById('ib-btn');
-  btn.innerHTML='<div class="spin"></div>';btn.disabled=true;
-  const port=parseInt(document.getElementById('ib-port').value)||7497;
-  try{
-    const r=await fetch(BASE+'/api/connect_ib',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({port})});
-    const j=await r.json();
-    if(j.status==='ok'){setConnIB(true);toast('✓ מחובר ל-IB! חשבון: '+j.account,'ok');}
-    else{toast('שגיאת IB: '+(j.message||'בדוק TWS'),'err');setConnIB(false);}
-  }catch(e){toast('שגיאה: '+e.message,'err');}
-  btn.innerHTML='🔌 התחבר ל-IB';btn.disabled=false;
-}
-
-async function runIB(){
-  document.getElementById('tbl').innerHTML='<div class="pw"><div class="pt">טוען מניות מ-IB...</div><div class="pb"><div class="pf" style="width:60%"></div></div></div>';
-  try{
-    const r=await fetch(`${BASE}/api/stocks_ib`);
-    const j=await r.json();
-    if(j.error)throw new Error(j.error);
-    all=j.stocks||[];
-    setConn(true,'IB');
-    filt=filter(all);render(filt);stats(filt);summ(filt);
-    document.getElementById('s4').textContent=new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
-    toast('✓ '+all.length+' מניות מ-IB','ok');
-  }catch(e){toast('שגיאת IB: '+e.message,'err');}
-}
+async function connIB(){toast('IB דורש שרת מקומי — לא זמין בגרסה הזו','err');}
+async function runIB(){toast('IB דורש שרת מקומי — לא זמין בגרסה הזו','err');}
 
 async function run(){
-  const key=document.getElementById('td-key').value.trim();
-  try{
-    const r=await fetch(BASE+'/api/ib_status');
-    const j=await r.json();
-    if(j.connected){await runIB();return;}
-  }catch(e){}
-  if(!key){toast('חבר IB או הכנס Twelve Data Key','err');pg('api',document.querySelectorAll('.nl')[1]);return;}
+  const key=getTDKey();
+  if(!key){toast('הכנס Twelve Data Key בדף החיבור','err');pg('api',document.querySelectorAll('.nl')[1]);return;}
   const btn=document.getElementById('rbtn');btn.innerHTML='<div class="spin"></div>';btn.disabled=true;
-  document.getElementById('tbl').innerHTML='<div class="pw"><div class="pt">טוען ~220 מניות...</div><div class="pb"><div class="pf" style="width:60%"></div></div></div>';
+  document.getElementById('tbl').innerHTML='<div class="pw"><div class="pt">טוען מניות...</div><div class="pb"><div class="pf" style="width:60%"></div></div></div>';
   try{
-    await fetch(BASE+'/api/key',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key})});
-    const r=await fetch(`${BASE}/api/stocks`);
-    const j=await r.json();
-    if(j.error)throw new Error(j.error);
-    all=j.stocks||[];
-    setConn(true,'TD');
+    const syms=(acSymbols.length?acSymbols.map(s=>s.ticker):FALLBACK_SYMS).slice(0,500);
+    const results=await tdQuoteBatch(syms,key);
+    if(!results.length)throw new Error('אין נתונים — בדוק שה-API Key תקין');
+    all=results;
   }catch(e){toast('שגיאה: '+e.message,'err');btn.innerHTML='▶ הרץ';btn.disabled=false;return;}
   if(cfn){try{all=cfn(all);}catch(e){}}
   filt=filter(all);render(filt);stats(filt);summ(filt);
   document.getElementById('s4').textContent=new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
+  setConn(true,'TD');
   btn.innerHTML='▶ הרץ';btn.disabled=false;
   toast('✓ '+all.length+' מניות','ok');
 }
@@ -578,24 +574,25 @@ async function run(){
 // ── Autocomplete engine ───────────────────────────────────────────────────────
 let acSymbols=[], acFuse=null, acSel=-1;
 let HEBREW_NAMES_EXTRA = {};
+const FALLBACK_SYMS=['AAPL','MSFT','NVDA','GOOGL','AMZN','META','TSLA','AMD','INTC','ORCL','CSCO','QCOM','TXN','AMAT','MU','AVGO','ADBE','INTU','LRCX','KLAC','MRVL','ADSK','FTNT','PANW','CRWD','ZS','DDOG','SNOW','PLTR','UBER','ABNB','CRM','NOW','WDAY','VEEV','NFLX','DIS','CMCSA','T','VZ','TMUS','JPM','BAC','WFC','GS','MS','C','V','MA','PYPL','JNJ','UNH','PFE','ABBV','MRK','LLY','BMY','AMGN','GILD','REGN','VRTX','WMT','HD','MCD','SBUX','NKE','TGT','COST','XOM','CVX','COP','EOG','BA','GE','CAT','DE','MMM','HON','RTX','LMT','UPS','FDX','NEE','PG','KO','PEP','PM','SPY','QQQ','IWM','GLD','TLT','F','GM','COIN','SQ','HOOD','SNAP','ROKU','SHOP','NET','TSM','ASML','SMCI','APP','MSTR','AI','ARM','RDDT','PINS','EBAY'];
 
 (async function initAC(){
+  const base=location.pathname.replace(/\/[^/]*$/,'')||'.';
   try{
-    const r=await fetch(BASE+'/api/symbols');
+    const r=await fetch(base+'/symbols.json');
     acSymbols=await r.json();
     acFuse=new Fuse(acSymbols,{
       keys:[{name:'ticker',weight:3},{name:'name',weight:1}],
       threshold:0.35, includeScore:true,
       minMatchCharLength:2, ignoreLocation:true, shouldSort:true
     });
-    console.log(`Autocomplete ready: ${acSymbols.length} symbols in memory`);
-  }catch(e){console.warn('Symbols not loaded:',e);}
-    // Load Hebrew names from server
-    try{
-      const rh = await fetch(BASE+'/api/hebrew_names');
-      HEBREW_NAMES_EXTRA = await rh.json();
-      console.log(`Hebrew names loaded: ${Object.keys(HEBREW_NAMES_EXTRA).length}`);
-    }catch(e){console.warn('Hebrew names not loaded:', e);}
+    console.log(`Autocomplete ready: ${acSymbols.length} symbols`);
+  }catch(e){console.warn('symbols.json not loaded:',e);}
+  try{
+    const rh=await fetch(base+'/hebrew_names.json');
+    HEBREW_NAMES_EXTRA=await rh.json();
+    console.log(`Hebrew names loaded: ${Object.keys(HEBREW_NAMES_EXTRA).length}`);
+  }catch(e){console.warn('hebrew_names.json not loaded:',e);}
 })();
 
 function acSearch(q){
@@ -706,23 +703,24 @@ async function srchSym(sym){
   sym=(sym||document.getElementById('ac-in').value).trim().toUpperCase();
   if(!sym)return;
   const btn=document.getElementById('sym-btn');btn.innerHTML='<div class="spin"></div>';
+  const key=getTDKey();
+  if(!key){toast('הכנס Twelve Data Key בדף החיבור','err');pg('api',document.querySelectorAll('.nl')[1]);btn.innerHTML='🔍';return;}
   try{
-    const key=document.getElementById('td-key').value.trim();
-    if(key)await fetch(BASE+'/api/key',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key})});
-    const r=await fetch(`${BASE}/api/search?symbol=${sym}`);
-    const s=await r.json();
-    if(s.error){
-      const nls=document.querySelectorAll('.nl');
-      if(s.error.toLowerCase().includes('apikey')||s.error.toLowerCase().includes('api key')||s.error.toLowerCase().includes('הכנס')){
-        toast('הכנס API Key בדף החיבור','err');
-        pg('api',nls[1]);
-      } else {
-        toast('לא נמצא: '+sym,'err');
-      }
-      btn.innerHTML='🔍';return;
-    }
+    const r=await fetch(`https://api.twelvedata.com/quote?symbol=${sym}&apikey=${key}`);
+    const q=await r.json();
+    if(q.status==='error'){toast('לא נמצא: '+sym,'err');btn.innerHTML='🔍';return;}
+    const raw=q.close||q.last||q.previous_close;
+    const price=parseFloat(raw||0);
+    if(!price){toast('אין מחיר עבור '+sym,'err');btn.innerHTML='🔍';return;}
+    const prev=parseFloat(q.previous_close||raw),chg=price-prev,chgp=prev?(chg/prev*100):0;
+    const s={ticker:q.symbol||sym,name:q.name||sym,exchange:q.exchange||'',
+      price:Math.round(price*100)/100,change:Math.round(chg*100)/100,changePercent:Math.round(chgp*100)/100,
+      open:parseFloat(q.open||0),high:parseFloat(q.high||0),low:parseFloat(q.low||0),
+      volume:parseInt(q.volume||0),avgVolume:parseInt(q.average_volume||0),
+      fiftyTwoWeekHigh:parseFloat((q.fifty_two_week||{}).high||0),
+      fiftyTwoWeekLow:parseFloat((q.fifty_two_week||{}).low||0),
+      marketOpen:isMarketOpen()};
     all=[s,...all.filter(x=>x.ticker!==s.ticker)];
-    // מניה שחיפשו ידנית תמיד מוצגת ראשונה, גם אם הפילטרים מסננים אותה
     const rest=filter(all.filter(x=>x.ticker!==s.ticker));
     filt=[s,...rest];
     stockMap[s.ticker]=s;
@@ -730,7 +728,7 @@ async function srchSym(sym){
     if(currentView==='grid'){gridPage=0;renderGrid();}
     toast('✓ '+sym+': $'+s.price.toFixed(2),'ok');
     pg('screener',document.querySelectorAll('.nl')[0]);
-  }catch(e){toast('שגיאת רשת','err');}
+  }catch(e){toast('שגיאת רשת: '+e.message,'err');}
   btn.innerHTML='🔍';
 }
 
@@ -959,10 +957,14 @@ async function stest(){
   if(!key){toast('הדבק API Key','err');return;}
   const btn=document.getElementById('tbtn');btn.innerHTML='<div class="spin"></div>';btn.disabled=true;
   try{
-    const r=await fetch(BASE+'/api/key/test',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key})});
+    const r=await fetch(`https://api.twelvedata.com/quote?symbol=AAPL&apikey=${key}`);
     const j=await r.json();
-    if(j.status==='ok'){localStorage.setItem('td-key',key);document.getElementById('td-key').classList.add('valid');setConnTD(true);toast('✓ Twelve Data מחובר! AAPL=$'+j.price,'ok');}
-    else{toast('שגיאה: '+(j.message||'Key שגוי'),'err');}
+    if(j.status!=='error'&&(j.close||j.last)){
+      localStorage.setItem('td-key',key);
+      document.getElementById('td-key').classList.add('valid');
+      setConnTD(true);
+      toast('✓ Twelve Data מחובר! AAPL=$'+parseFloat(j.close||j.last).toFixed(2),'ok');
+    }else{toast('שגיאה: '+(j.message||'Key שגוי'),'err');}
   }catch(e){toast('שגיאה: '+e.message,'err');}
   btn.innerHTML='💾 שמור ובדוק';btn.disabled=false;
 }
@@ -989,19 +991,13 @@ function setConnTD(v){
   document.getElementById('td-disc').style.opacity=v?'1':'0.35';
   if(v)setConn(true,'TD');
 }
-async function disconnIB(){
-  try{await fetch(BASE+'/api/disconnect_ib',{method:'POST'});}catch(e){}
-  setConnIB(false);
-  setConn(false,'');
-  toast('IB נותק','ok');
-}
+async function disconnIB(){setConnIB(false);setConn(false,'');toast('IB נותק','ok');}
 function clr(){
   document.getElementById('td-key').value='';
   document.getElementById('td-key').classList.remove('valid');
   localStorage.removeItem('td-key');
   setConnTD(false);
   setConn(false,'');
-  fetch(BASE+'/api/key',{method:'POST',headers:{'Content-Type':'application/json'},body:'{"key":""}'}).catch(()=>{});
   toast('Twelve Data נותק','ok');
 }
 function rcode(){try{cfn=new Function(document.getElementById('jsc').value+'\nreturn screenStocks;')();if(all.length){filt=filter(cfn(all));render(filt);stats(filt);}toast('קוד פעיל ✓','ok');}catch(e){toast('שגיאה','err');}}
@@ -1181,23 +1177,18 @@ function deleteSavedFilter(){} // נשמר לתאימות אחורה
 
 // ── טעינת כל הסימבולים מ-Twelve Data ──────────────────────────────────────
 async function fetchAllSymbols(){
-  const key=document.getElementById('td-key').value.trim();
-  if(!key){toast('נדרש Twelve Data API Key','err');return;}
   const btn=document.getElementById('fetch-syms-btn');
   const st=document.getElementById('fetch-syms-status');
   btn.innerHTML='<div class="spin"></div> טוען...';btn.disabled=true;
-  st.textContent='מוריד רשימת סמלים (עשוי לקחת 15-30 שניות)...';
+  st.textContent='טוען רשימת סמלים...';
   try{
-    const r=await fetch(BASE+'/api/fetch_symbols',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key})});
-    const j=await r.json();
-    if(j.error)throw new Error(j.error);
-    st.textContent=`✓ ${j.count} סמלים נטענו ונשמרו`;
-    st.style.color='var(--gr)';
-    // רענון ה-autocomplete
-    const r2=await fetch(BASE+'/api/symbols');
-    acSymbols=await r2.json();
+    const base=location.pathname.replace(/\/[^/]*$/,'')||'.';
+    const r=await fetch(base+'/symbols.json');
+    acSymbols=await r.json();
     acFuse=new Fuse(acSymbols,{keys:[{name:'ticker',weight:3},{name:'name',weight:1}],threshold:0.35,includeScore:true,minMatchCharLength:2,ignoreLocation:true,shouldSort:true});
-    toast('✓ '+j.count+' סמלים נטענו','ok');
+    st.textContent=`✓ ${acSymbols.length} סמלים נטענו`;
+    st.style.color='var(--gr)';
+    toast('✓ '+acSymbols.length+' סמלים','ok');
   }catch(e){st.textContent='שגיאה: '+e.message;st.style.color='var(--rd)';toast('שגיאה: '+e.message,'err');}
   btn.innerHTML='📥 טען כל הסימבולים';btn.disabled=false;
 }
@@ -1208,10 +1199,8 @@ if(sk){
   document.getElementById('td-key').value=sk;
   document.getElementById('td-key').classList.add('valid');
   setConnTD(true);
-  fetch(BASE+'/api/key',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:sk})}).catch(()=>{});
 }
 const js=localStorage.getItem('jsc');if(js)document.getElementById('jsc').value=js;
-fetch(BASE+'/api/ib_status').then(r=>r.json()).then(j=>{if(j.connected){setConnIB(true);}}).catch(()=>{});
 updateSavedFiltersList();
 
 // ── Chart Config ─────────────────────────────────────────────────────────────
