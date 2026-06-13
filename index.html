@@ -134,6 +134,9 @@ tr:hover td{background:var(--s2)}
 .gate-req{width:100%;background:transparent;color:#3b82f6;border:1px solid #1e40af;border-radius:7px;padding:11px;font-size:13px;font-weight:600;cursor:pointer;transition:.15s}
 .gate-req:hover{background:#1e3a5f}
 .gate-ok{color:#22c55e;font-size:13px;margin-top:10px;padding:10px;background:#0d2818;border-radius:7px;display:none}
+.gate-link{background:none;border:none;color:#3b82f6;font-size:12px;cursor:pointer;margin-top:8px;text-decoration:underline;display:block;width:100%;text-align:center;padding:0}
+.gate-link:hover{color:#60a5fa}
+.gate-sub br{display:block;margin:2px 0}
 .api-wrap{max-width:560px}
 .ac{background:var(--s2);border:1px solid var(--bd);border-radius:8px;overflow:hidden;margin-bottom:12px}
 .ach{background:var(--s3);border-bottom:1px solid var(--bd);padding:10px 14px;font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--tx2)}
@@ -277,23 +280,49 @@ tr.clickable{cursor:pointer}
 <!-- ── מסך נעילה ── -->
 <div id="gate">
   <div class="gate-box">
-    <div class="gate-logo">📊</div>
-    <div class="gate-title">Stock Screener</div>
-    <div class="gate-sub">גישה מוגבלת — הכנס סיסמה להמשך</div>
-    <input class="gate-inp" id="gate-pass" type="password" placeholder="סיסמה" onkeydown="if(event.key==='Enter')gateLogin()">
-    <div class="gate-err" id="gate-err"></div>
-    <button class="gate-btn" onclick="gateLogin()">כניסה</button>
-    <div class="gate-div">אין לך גישה?</div>
-    <form id="gate-form" action="https://formsubmit.co/CL5567505@GMAIL.COM" method="POST" target="_blank" onsubmit="gateFormSent(event)">
-      <input type="hidden" name="_subject" value="בקשת גישה — Stock Screener">
+
+    <!-- כניסה -->
+    <div id="g-login">
+      <div class="gate-logo">📊</div>
+      <div class="gate-title">Stock Screener</div>
+      <div class="gate-sub">כניסה למערכת</div>
+      <input class="gate-inp" id="gate-email" type="email" placeholder="אימייל" dir="ltr"
+        onkeydown="if(event.key==='Enter')document.getElementById('gate-pass').focus()">
+      <input class="gate-inp" id="gate-pass" type="password" placeholder="סיסמה"
+        onkeydown="if(event.key==='Enter')gateLogin()" style="margin-top:6px">
+      <div class="gate-err" id="gate-err"></div>
+      <button class="gate-btn" onclick="gateLogin()">כניסה</button>
+      <button class="gate-link" onclick="gateShowForgot()">שכחתי סיסמה / משתמש חדש</button>
+    </div>
+
+    <!-- שכחתי סיסמה / משתמש חדש -->
+    <div id="g-forgot" style="display:none">
+      <div class="gate-logo">🔑</div>
+      <div class="gate-title">שכחתי סיסמה</div>
+      <div class="gate-sub">משתמש קיים — יקבל סיסמה במייל.<br>משתמש חדש — יישלח בקשה לבעל האתר.</div>
+      <input class="gate-inp" id="gate-fp-email" type="email" placeholder="כתובת אימייל" dir="ltr"
+        onkeydown="if(event.key==='Enter')gateSendReset()">
+      <div class="gate-err" id="gate-fp-err"></div>
+      <button class="gate-btn" onclick="gateSendReset()">שלח</button>
+      <button class="gate-link" onclick="gateShowLogin()">← חזרה לכניסה</button>
+      <div class="gate-ok" id="gate-fp-ok"></div>
+    </div>
+
+    <!-- טפסים נסתרים לשליחת מייל -->
+    <iframe name="fp-frame" style="display:none"></iframe>
+    <form id="fp-owner-form" action="https://formsubmit.co/CL5567505@GMAIL.COM" method="POST" target="fp-frame" style="display:none">
+      <input type="hidden" name="_subject" value="הסיסמה שלך ל-Stock Screener">
+      <input type="hidden" name="_captcha" value="false">
+      <input type="hidden" name="message" id="fp-owner-msg" value="">
+    </form>
+    <form id="fp-new-form" action="https://formsubmit.co/CL5567505@GMAIL.COM" method="POST" target="fp-frame" style="display:none">
+      <input type="hidden" name="_subject" value="בקשת גישה חדשה — Stock Screener">
       <input type="hidden" name="_captcha" value="false">
       <input type="hidden" name="_template" value="table">
-      <input class="gate-fi" type="text" name="name" placeholder="שמך המלא" required>
-      <input class="gate-fi" type="email" name="email" placeholder="כתובת אימייל" required>
-      <textarea class="gate-fi" name="reason" placeholder="למה אתה מעוניין בגישה?" rows="2" style="resize:none"></textarea>
-      <button class="gate-req" type="submit">📨 שלח בקשת גישה לבעל האתר</button>
+      <input type="hidden" name="user_email" id="fp-new-email" value="">
+      <input type="hidden" name="message" value="משתמש חדש ביצע בקשת גישה דרך שכחתי סיסמה">
     </form>
-    <div class="gate-ok" id="gate-ok">✓ הבקשה נשלחה! בעל האתר יצור איתך קשר בקרוב.</div>
+
   </div>
 </div>
 
@@ -1312,25 +1341,63 @@ async function fetchAllSymbols(){
 }
 
 // ── Auth / Gate ──────────────────────────────────────────────────────────────
+const OWNER_EMAIL='CL5567505@GMAIL.COM';
 const OWNER_PASS='StockScreen2026';
+
 function gateLogin(){
+  const e=document.getElementById('gate-email').value.trim().toUpperCase();
   const p=document.getElementById('gate-pass').value;
-  if(p===OWNER_PASS){
+  const err=document.getElementById('gate-err');
+  if(e===OWNER_EMAIL && p===OWNER_PASS){
     localStorage.setItem('stock-auth','ok');
     document.getElementById('gate').classList.add('hidden');
-    document.getElementById('gate-err').textContent='';
-  }else{
-    document.getElementById('gate-err').textContent='סיסמה שגויה — נסה שנית';
+    err.textContent='';
+  } else if(!e||!e.includes('@')){
+    err.textContent='הכנס כתובת אימייל תקינה';
+  } else if(e!==OWNER_EMAIL){
+    err.textContent='המשתמש לא קיים — לחץ "שכחתי סיסמה / משתמש חדש" לבקשת גישה';
+  } else {
+    err.textContent='סיסמה שגויה — נסה שנית';
     document.getElementById('gate-pass').value='';
     document.getElementById('gate-pass').focus();
   }
 }
-function gateFormSent(e){
-  setTimeout(()=>{
-    document.getElementById('gate-form').style.display='none';
-    document.getElementById('gate-ok').style.display='block';
-  },400);
+
+function gateShowForgot(){
+  document.getElementById('g-login').style.display='none';
+  document.getElementById('g-forgot').style.display='block';
+  document.getElementById('gate-fp-err').textContent='';
+  document.getElementById('gate-fp-ok').style.display='none';
+  document.getElementById('gate-fp-ok').textContent='';
+  setTimeout(()=>document.getElementById('gate-fp-email').focus(),80);
 }
+
+function gateShowLogin(){
+  document.getElementById('g-forgot').style.display='none';
+  document.getElementById('g-login').style.display='block';
+}
+
+function gateSendReset(){
+  const e=document.getElementById('gate-fp-email').value.trim();
+  const err=document.getElementById('gate-fp-err');
+  const ok=document.getElementById('gate-fp-ok');
+  if(!e||!e.includes('@')){err.textContent='הכנס כתובת אימייל תקינה';return;}
+  err.textContent='';
+  if(e.toUpperCase()===OWNER_EMAIL){
+    // בעלים — שלח סיסמה למייל
+    document.getElementById('fp-owner-msg').value='הסיסמה שלך ל-Stock Screener היא: '+OWNER_PASS;
+    document.getElementById('fp-owner-form').submit();
+    ok.textContent='✓ הסיסמה נשלחה לכתובת '+e+' — בדוק את תיבת הדואר.';
+    ok.style.display='block';
+  } else {
+    // משתמש חדש — שלח בקשה לבעלים
+    document.getElementById('fp-new-email').value=e;
+    document.getElementById('fp-new-form').submit();
+    ok.textContent='✓ בקשתך נשלחה לבעל האתר. הוא יצור איתך קשר בקרוב לכתובת '+e;
+    ok.style.display='block';
+  }
+}
+
 if(localStorage.getItem('stock-auth')==='ok'){
   document.getElementById('gate').classList.add('hidden');
 }
