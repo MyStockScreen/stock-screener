@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://mystockscreen.github.io/stock-screener/sitemap.xml
