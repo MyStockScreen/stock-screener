@@ -114,6 +114,26 @@ tr:hover td{background:var(--s2)}
 .ac-hint{padding:10px 14px;color:var(--tx3);font-size:11px;text-align:center}
 .ac-sep{padding:4px 12px;font-size:10px;color:var(--tx3);background:var(--s3);border-top:1px solid var(--bd);border-bottom:1px solid var(--bd);letter-spacing:.5px}
 .ac-online .ac-ticker{color:#f5a623}
+/* ── Gate / Auth Screen ── */
+#gate{position:fixed;top:0;left:0;width:100%;height:100%;background:#0a0e14;z-index:9999;display:flex;align-items:center;justify-content:center}
+#gate.hidden{display:none}
+.gate-box{background:#141922;border:1px solid #2a3347;border-radius:14px;padding:40px 36px;width:400px;max-width:94vw;text-align:center;direction:rtl}
+.gate-logo{font-size:36px;margin-bottom:10px}
+.gate-title{font-size:22px;font-weight:800;color:#e2e8f0;margin-bottom:4px;letter-spacing:-.5px}
+.gate-sub{font-size:12px;color:#64748b;margin-bottom:28px}
+.gate-inp{width:100%;background:#0d1117;border:1px solid #2a3347;color:#e2e8f0;padding:11px 14px;border-radius:7px;font-size:15px;box-sizing:border-box;margin-bottom:8px;direction:ltr;text-align:center;font-family:'IBM Plex Mono',monospace;outline:none;transition:.2s}
+.gate-inp:focus{border-color:#3b82f6}
+.gate-btn{width:100%;background:#3b82f6;color:#fff;border:none;border-radius:7px;padding:12px;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:4px;transition:.15s}
+.gate-btn:hover{background:#2563eb}
+.gate-err{color:#ef4444;font-size:12px;min-height:18px;margin-bottom:6px}
+.gate-div{display:flex;align-items:center;gap:10px;margin:20px 0 16px;color:#374151;font-size:12px}
+.gate-div::before,.gate-div::after{content:'';flex:1;height:1px;background:#1e293b}
+.gate-fi{width:100%;background:#0d1117;border:1px solid #2a3347;color:#e2e8f0;padding:10px 12px;border-radius:7px;font-size:13px;box-sizing:border-box;margin-bottom:8px;direction:rtl;outline:none;font-family:inherit;transition:.2s}
+.gate-fi:focus{border-color:#3b82f6}
+.gate-fi::placeholder{color:#374151}
+.gate-req{width:100%;background:transparent;color:#3b82f6;border:1px solid #1e40af;border-radius:7px;padding:11px;font-size:13px;font-weight:600;cursor:pointer;transition:.15s}
+.gate-req:hover{background:#1e3a5f}
+.gate-ok{color:#22c55e;font-size:13px;margin-top:10px;padding:10px;background:#0d2818;border-radius:7px;display:none}
 .api-wrap{max-width:560px}
 .ac{background:var(--s2);border:1px solid var(--bd);border-radius:8px;overflow:hidden;margin-bottom:12px}
 .ach{background:var(--s3);border-bottom:1px solid var(--bd);padding:10px 14px;font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--tx2)}
@@ -253,6 +273,30 @@ tr.clickable{cursor:pointer}
 </style>
 </head>
 <body>
+
+<!-- ── מסך נעילה ── -->
+<div id="gate">
+  <div class="gate-box">
+    <div class="gate-logo">📊</div>
+    <div class="gate-title">Stock Screener</div>
+    <div class="gate-sub">גישה מוגבלת — הכנס סיסמה להמשך</div>
+    <input class="gate-inp" id="gate-pass" type="password" placeholder="סיסמה" onkeydown="if(event.key==='Enter')gateLogin()">
+    <div class="gate-err" id="gate-err"></div>
+    <button class="gate-btn" onclick="gateLogin()">כניסה</button>
+    <div class="gate-div">אין לך גישה?</div>
+    <form id="gate-form" action="https://formsubmit.co/v0507596874@gmail.com" method="POST" target="_blank" onsubmit="gateFormSent(event)">
+      <input type="hidden" name="_subject" value="בקשת גישה — Stock Screener">
+      <input type="hidden" name="_captcha" value="false">
+      <input type="hidden" name="_template" value="table">
+      <input class="gate-fi" type="text" name="name" placeholder="שמך המלא" required>
+      <input class="gate-fi" type="email" name="email" placeholder="כתובת אימייל" required>
+      <textarea class="gate-fi" name="reason" placeholder="למה אתה מעוניין בגישה?" rows="2" style="resize:none"></textarea>
+      <button class="gate-req" type="submit">📨 שלח בקשת גישה לבעל האתר</button>
+    </form>
+    <div class="gate-ok" id="gate-ok">✓ הבקשה נשלחה! בעל האתר יצור איתך קשר בקרוב.</div>
+  </div>
+</div>
+
 <div id="toast" class="toast"><span id="ti">✓</span><span id="tm"></span></div>
 <nav class="topnav">
   <div class="logo"><span class="logo-box">STOCK</span>SCREENER</div>
@@ -1265,6 +1309,30 @@ async function fetchAllSymbols(){
     toast('✓ '+acSymbols.length+' סמלים','ok');
   }catch(e){st.textContent='שגיאה: '+e.message;st.style.color='var(--rd)';toast('שגיאה: '+e.message,'err');}
   btn.innerHTML='📥 טען כל הסימבולים';btn.disabled=false;
+}
+
+// ── Auth / Gate ──────────────────────────────────────────────────────────────
+const OWNER_PASS='StockScreen2026';
+function gateLogin(){
+  const p=document.getElementById('gate-pass').value;
+  if(p===OWNER_PASS){
+    localStorage.setItem('stock-auth','ok');
+    document.getElementById('gate').classList.add('hidden');
+    document.getElementById('gate-err').textContent='';
+  }else{
+    document.getElementById('gate-err').textContent='סיסמה שגויה — נסה שנית';
+    document.getElementById('gate-pass').value='';
+    document.getElementById('gate-pass').focus();
+  }
+}
+function gateFormSent(e){
+  setTimeout(()=>{
+    document.getElementById('gate-form').style.display='none';
+    document.getElementById('gate-ok').style.display='block';
+  },400);
+}
+if(localStorage.getItem('stock-auth')==='ok'){
+  document.getElementById('gate').classList.add('hidden');
 }
 
 setConnIB(false);setConnTD(false);
